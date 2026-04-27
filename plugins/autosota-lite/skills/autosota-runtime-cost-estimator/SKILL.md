@@ -90,9 +90,10 @@ If the repo looks like CleanRL:
 Vast.ai prices are live marketplace prices. Do not invent exact live prices.
 
 - If the user asks for live pricing and the Vast.ai CLI is available, run search-only offer queries.
+- Vast.ai search-only offer queries do not require an API key. Do not ask for or configure an API key just to search offers.
 - If the CLI is unavailable, provide setup instructions:
   - `pip install vastai`
-  - `vastai set api-key YOUR_API_KEY`
+- Only mention `vastai set api-key YOUR_API_KEY` when the user explicitly asks to perform account actions such as renting, starting, stopping, destroying, or modifying instances.
 - Never print API keys.
 - Never create, rent, start, stop, destroy, or modify instances unless the user explicitly asks.
 - Prefer on-demand instances for uninterrupted training.
