@@ -1,0 +1,6 @@
+{
+  "name": "autosota-lite",
+  "version": "0.1.0",
+  "description": "A lightweight AutoSOTA-style workflow plugin for reproducing, auditing, and improving ML paper results.",
+  "skills": "./skills/"
+}

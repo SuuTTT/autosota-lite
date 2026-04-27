@@ -1,0 +1,20 @@
+{
+  "name": "local-codex-plugins",
+  "interface": {
+    "displayName": "Local Codex Plugins"
+  },
+  "plugins": [
+    {
+      "name": "autosota-lite",
+      "source": {
+        "source": "local",
+        "path": "./plugins/autosota-lite"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Research"
+    }
+  ]
+}
