@@ -1,0 +1,4 @@
+interface:
+  display_name: "Runtime Cost Estimator"
+  short_description: "Estimate ML/RL runtime and Vast.ai rental costs from evidence."
+  default_prompt: "Estimate runtime and Vast.ai cost for this ML/RL reproduction task. Search paper and repo evidence first, respect platform safety rules, and write runtime_estimate.md, cost_estimate.md, cost_estimate.json, and autosota.yaml if needed."
