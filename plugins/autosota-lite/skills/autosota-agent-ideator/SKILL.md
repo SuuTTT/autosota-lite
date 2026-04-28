@@ -15,15 +15,33 @@ Generate only hypotheses that can be evaluated under the original experimental c
 
 - Paper objective, reported metrics, dataset split, evaluation command, and methodological constraints.
 - Repository cognition, ideally from `code_analysis.md`.
-- External research prior, ideally from `research_report.md`.
+- External research prior from `deepresearch`, ideally captured in `research_report.md`.
 - Existing idea pool and outcomes, ideally from `idea_library.md`.
 - AgentSupervisor red lines for the current paper.
 
 ## Artifact Responsibilities
 
-- **`research_report.md`**: AgentIdeator creates or refreshes this when external research context is missing or stale. It should summarize task-relevant SOTA patterns, empirical heuristics, community best practices, and concrete optimization strategies.
+- **`research_report.md`**: AgentIdeator creates or refreshes this with `deepresearch` when external research context is missing or stale. It should summarize task-relevant SOTA patterns, empirical heuristics, community best practices, and concrete optimization strategies.
 - **`idea_library.md`**: AgentIdeator creates and curates this as the systematized hypothesis library. It records admissible, rejected, and human-review ideas with audit notes.
 - **`code_analysis.md`**: AgentIdeator reads this for implementation alignment, but usually does not own it. If missing, request or trigger code cognition before finalizing risky code-level ideas.
+
+## Deepresearch Modes
+
+Use the strongest available research mode and record which mode was used in `research_report.md`.
+
+1. **API deepresearch**
+   - Prefer the OpenAI Deep Research API when an API key is available, typically through `OPENAI_API_KEY`.
+   - Use a deep-research-capable model with web or file-search tools, and prompt it with the paper objective, metric, constraints, and repository findings.
+   - Save the result to `research_report.md` with citations or source links when available.
+
+2. **Browser research fallback**
+   - If no API key is provided and the agent has browser or web-search access, conduct browser-based research directly.
+   - Clearly denote in `research_report.md` that the report was produced by browser research fallback rather than API deepresearch.
+   - Include source links, retrieval dates when useful, and enough source grounding for AgentSupervisor to audit the research prior.
+
+3. **Manual research handoff**
+   - If neither API deepresearch nor browser research is available, request a human-provided research prior or proceed only with repository and paper-local evidence.
+   - Mark `research_report.md` as missing, stale, or manually supplied, and downgrade unsupported hypotheses to `REVIEW`.
 
 ## Alignment Checks
 
@@ -71,7 +89,8 @@ Assign each hypothesis an admissibility status:
    - Read `code_analysis.md` if available; otherwise perform targeted repository inspection sufficient to avoid ungrounded hypotheses.
 
 2. **Build or refresh external prior**
-   - Create or update `research_report.md` with task-specific literature patterns and best practices.
+   - Use the best available deepresearch mode to create or update `research_report.md` with task-specific literature patterns and best practices.
+   - If API deepresearch is unavailable because no API key is configured, use browser research fallback when browsing is available and denote that mode in the report.
    - Keep the report actionable: each insight should imply one or more candidate levers.
 
 3. **Generate candidate hypotheses**
