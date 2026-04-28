@@ -250,21 +250,21 @@ export DEBIAN_FRONTEND=noninteractive
 mkdir -p /workspace/vastai-job
 LOG=/workspace/vastai-job/job.log
 STATUS=/workspace/vastai-job/status.json
-echo "[vastai-scheduler] started at $(date -Is)" | tee -a "$LOG"
+echo "[vastai-scheduler $(TZ=Asia/Shanghai date '+%Y-%m-%dT%H:%M:%S%z')] started at $(date -Is)" | tee -a "$LOG"
 if ! command -v vastai >/dev/null 2>&1; then
   python3 -m pip install --quiet vastai >>"$LOG" 2>&1 || pip install --quiet vastai >>"$LOG" 2>&1
 fi
 set +e
 bash -lc {shlex.quote(job_cmd)} 2>&1 | tee -a "$LOG"
-status=${{PIPESTATUS[0]}}
+status=${PIPESTATUS[0]}
 set -e
-printf '{{"finished_at":"%s","exit_code":%s}}\\n' "$(date -Is)" "$status" > "$STATUS"
-echo "[vastai-scheduler] job exited with $status at $(date -Is)" | tee -a "$LOG"
+printf '{"finished_at":"%s","exit_code":%s}\n' "$(date -Is)" "$status" > "$STATUS"
+echo "[vastai-scheduler $(TZ=Asia/Shanghai date '+%Y-%m-%dT%H:%M:%S%z')] job exited with $status at $(date -Is)" | tee -a "$LOG"
 if {destroy_condition}; then
-  echo "[vastai-scheduler] destroying instance ${{CONTAINER_ID:-unknown}}" | tee -a "$LOG"
+  echo "[vastai-scheduler $(TZ=Asia/Shanghai date '+%Y-%m-%dT%H:%M:%S%z')] destroying instance ${CONTAINER_ID:-unknown}" | tee -a "$LOG"
   vastai destroy instance "$CONTAINER_ID" --api-key "$CONTAINER_API_KEY" >>"$LOG" 2>&1
 else
-  echo "[vastai-scheduler] leaving failed instance running for debugging" | tee -a "$LOG"
+  echo "[vastai-scheduler $(TZ=Asia/Shanghai date '+%Y-%m-%dT%H:%M:%S%z')] leaving failed instance running for debugging" | tee -a "$LOG"
 fi
 """
 
