@@ -1,0 +1,66 @@
+{
+  "avoid_countries": [
+    "CN",
+    "US"
+  ],
+  "chosen_offer": {
+    "cpu_cores_effective": 3.4285714285714284,
+    "cpu_ram_gb": 8.96,
+    "disk_bw_mb_s": 401.8,
+    "disk_space_gb": 78.57142857142857,
+    "duration_days": 11939478.705651045,
+    "estimated_total_usd": 0.002069,
+    "geolocation": "South Korea, KR",
+    "gpu": "1x GTX 1080 Ti",
+    "gpu_ram_gb": 11.0,
+    "hourly_usd": 0.041389,
+    "inet_down_cost_usd_per_gb": 0.0026041666666666665,
+    "inet_down_mbps": 677.6,
+    "inet_up_cost_usd_per_gb": 0.0026041666666666665,
+    "inet_up_mbps": 623.9,
+    "offer_id": 32784732,
+    "reliability": 0.9981929,
+    "storage_cost_usd_per_gb_month": 0.19999999999999998,
+    "verified": "verified"
+  },
+  "disk_gb": 5.0,
+  "download_gb": 0.0,
+  "generated_at": "2026-04-28T05:04:08Z",
+  "offer_type": "on-demand",
+  "offers": [
+    {
+      "cpu_cores_effective": 3.4285714285714284,
+      "cpu_ram_gb": 8.96,
+      "disk_bw_mb_s": 401.8,
+      "disk_space_gb": 78.57142857142857,
+      "duration_days": 11939478.705651045,
+      "estimated_total_usd": 0.002069,
+      "geolocation": "South Korea, KR",
+      "gpu": "1x GTX 1080 Ti",
+      "gpu_ram_gb": 11.0,
+      "hourly_usd": 0.041389,
+      "inet_down_cost_usd_per_gb": 0.0026041666666666665,
+      "inet_down_mbps": 677.6,
+      "inet_up_cost_usd_per_gb": 0.0026041666666666665,
+      "inet_up_mbps": 623.9,
+      "offer_id": 32784732,
+      "reliability": 0.9981929,
+      "storage_cost_usd_per_gb_month": 0.19999999999999998,
+      "verified": "verified"
+    }
+  ],
+  "query": "rentable=true rented=false verified=true reliability>0.98 num_gpus>=1 disk_space>=5.0 storage_cost<=0.2 inet_up_cost<=0.02 inet_down_cost<=0.02 geolocation notin [CN,US]",
+  "runtime_hours": 0.05,
+  "upload_gb": 0.0
+}
+Traceback (most recent call last):
+  File "/workspace/autosota-lite/plugins/autosota-lite/skills/autosota-vastai-scheduler/scripts/vastai_scheduler.py", line 392, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File "/workspace/autosota-lite/plugins/autosota-lite/skills/autosota-vastai-scheduler/scripts/vastai_scheduler.py", line 377, in main
+    created = create_instance(
+              ^^^^^^^^^^^^^^^^
+  File "/workspace/autosota-lite/plugins/autosota-lite/skills/autosota-vastai-scheduler/scripts/vastai_scheduler.py", line 270, in create_instance
+    raise RuntimeError(f"vastai create instance failed:\n{output}")
+RuntimeError: vastai create instance failed:
+Failed with error 401: Authorization Error. Your key lacks the api.ask route access which is required for this action.
