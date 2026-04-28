@@ -27,6 +27,8 @@ For launch/destroy actions, the user must configure the key locally:
 vastai set api-key YOUR_API_KEY
 ```
 
+If you use `--ssh`, the scheduler will automatically register your local `~/.ssh/id_ed25519.pub` (or `id_rsa.pub`) public key with Vast.ai if no keys are currently registered in your account. This ensures you can connect to the newly created instance from your current terminal.
+
 Do not put the account API key in `--job-cmd`, `--env`, logs, or chat. The scheduler redacts `instance_api_key` from its create output.
 
 `CONTAINER_ID` is not an API key. It is the instance/contract ID inside the rented container. Vast.ai also injects `CONTAINER_API_KEY` inside the instance; the remote cleanup script attempts:
@@ -44,6 +46,8 @@ Run the bundled script:
 ```bash
 python3 /workspace/autosota-lite/plugins/autosota-lite/skills/autosota-vastai-scheduler/scripts/vastai_scheduler.py --help
 ```
+
+The launch default image is `vastai/pytorch`, Vast.ai's standard PyTorch image family. Treat this as an image family, not a complete runtime contract: probe the selected instance for the Python executable that can import `torch` before running ML code. Override `--image` when the task requires a specific pinned CUDA/PyTorch/Python stack or a non-PyTorch runtime.
 
 Estimate only:
 
@@ -93,7 +97,7 @@ python3 /workspace/autosota-lite/plugins/autosota-lite/skills/autosota-vastai-sc
   --limit 3 \
   --order dph \
   --offer-type on-demand \
-  --image ubuntu:22.04 \
+  --image vastai/pytorch \
   --job-cmd 'echo hello world from autosota-vastai-scheduler' \
   --label autosota-vastai-scheduler-hello \
   --ssh \

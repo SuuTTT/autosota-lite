@@ -23,7 +23,7 @@ from typing import Any
 
 
 DEFAULT_AVOID_COUNTRIES = "CN,US"
-DEFAULT_IMAGE = "pytorch/pytorch:2.5.1-cuda12.4-cudnn9-devel"
+DEFAULT_IMAGE = "vastai/pytorch"
 
 
 @dataclass(frozen=True)
@@ -61,6 +61,32 @@ def run_vastai(args: list[str]) -> tuple[int, str]:
         check=False,
     )
     return proc.returncode, proc.stdout.strip()
+
+
+def ensure_ssh_key_registered() -> None:
+    """Check if any SSH key is registered in Vast.ai; if not, register the local public key."""
+    code, output = run_vastai(["show", "ssh-keys", "--raw"])
+    if code == 0:
+        try:
+            keys = json.loads(output)
+            if keys:
+                return  # At least one key is already registered
+        except json.JSONDecodeError:
+            pass
+
+    # No keys found or error reading keys, attempt to register local public key
+    pub_key_path = Path.home() / ".ssh" / "id_ed25519.pub"
+    if not pub_key_path.exists():
+        # Maybe it's RSA?
+        pub_key_path = Path.home() / ".ssh" / "id_rsa.pub"
+
+    if pub_key_path.exists():
+        print(f"Registering local public key {pub_key_path} with Vast.ai...", file=sys.stderr)
+        code, output = run_vastai(["create", "ssh-key", str(pub_key_path)])
+        if code != 0:
+            print(f"Warning: Failed to register SSH key: {output}", file=sys.stderr)
+    else:
+        print("Warning: No local SSH public key found and none registered in Vast.ai. SSH access might fail.", file=sys.stderr)
 
 
 def instance_exists(instance_id: int) -> bool:
@@ -256,12 +282,12 @@ if ! command -v vastai >/dev/null 2>&1; then
 fi
 set +e
 bash -lc {shlex.quote(job_cmd)} 2>&1 | tee -a "$LOG"
-status=${PIPESTATUS[0]}
+status=${{PIPESTATUS[0]}}
 set -e
-printf '{"finished_at":"%s","exit_code":%s}\n' "$(date -Is)" "$status" > "$STATUS"
+printf '{{"finished_at":"%s","exit_code":%s}}\n' "$(date -Is)" "$status" > "$STATUS"
 echo "[vastai-scheduler $(TZ=Asia/Shanghai date '+%Y-%m-%dT%H:%M:%S%z')] job exited with $status at $(date -Is)" | tee -a "$LOG"
 if {destroy_condition}; then
-  echo "[vastai-scheduler $(TZ=Asia/Shanghai date '+%Y-%m-%dT%H:%M:%S%z')] destroying instance ${CONTAINER_ID:-unknown}" | tee -a "$LOG"
+  echo "[vastai-scheduler $(TZ=Asia/Shanghai date '+%Y-%m-%dT%H:%M:%S%z')] destroying instance ${{CONTAINER_ID:-unknown}}" | tee -a "$LOG"
   vastai destroy instance "$CONTAINER_ID" --api-key "$CONTAINER_API_KEY" >>"$LOG" 2>&1
 else
   echo "[vastai-scheduler $(TZ=Asia/Shanghai date '+%Y-%m-%dT%H:%M:%S%z')] leaving failed instance running for debugging" | tee -a "$LOG"
@@ -464,6 +490,9 @@ def main() -> int:
             file=sys.stderr,
         )
         return 0
+
+    if args.ssh:
+        ensure_ssh_key_registered()
 
     created = create_instance(
         offer_id=offer_id,

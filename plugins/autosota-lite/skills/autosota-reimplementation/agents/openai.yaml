@@ -1,0 +1,4 @@
+interface:
+  display_name: "Reimplementation"
+  short_description: "Convert research code into one-file implementations."
+  default_prompt: "Use $autosota-reimplementation to port this research repo into a CleanRL-style one-file implementation, then compare runtime, metrics, and optional JAX rewrite opportunities."
