@@ -1,8 +1,35 @@
 # autosota-lite
 
-`autosota-lite` is a local Codex plugin that adds one skill, `autosota-research-loop`, for ML paper reproduction and improvement workflows.
+`autosota-lite` is a local Codex plugin suite for ML paper reproduction and improvement workflows. It provides a set of specialized skills to automate research, resource management, and implementation tasks.
 
-The skill organizes a project into setup, baseline, ideation, iteration, audit, and report modes. It is designed to preserve benchmark integrity while helping Codex track resources, objectives, code analysis, experiment ideas, scores, logs, and run artifacts.
+## Available Skills
+
+### Core Research
+- **autosota-research-loop**: Coordinates the end-to-end research process (setup, baseline, ideation, iteration, audit, report).
+- **autosota-agent-ideator**: Specialized in benchmark-safe improvement ideas and experiment design.
+- **autosota-agent-objective**: Defines and refines research objectives and success metrics.
+
+### Implementation & Fixing
+- **autosota-reimplementation**: Automated rewriting and porting of code (e.g., to JAX or CleanRL styles).
+- **autosota-agent-fix**: Debugs and resolves implementation errors.
+- **autosota-agent-init-fix**: Specifically handles initialization and setup-related issues.
+
+### Infrastructure & Operations
+- **autosota-vastai-scheduler**: Manages GPU instances and job submission on Vast.ai.
+- **autosota-agent-scheduler**: General job scheduling and process management.
+- **autosota-runtime-cost-estimator**: Estimates GPU costs and recommends hardware based on workload.
+- **autosota-agent-resource**: Maps and manages workspace resources and dependencies.
+
+### Monitoring & Governance
+- **autosota-agent-monitor**: Monitors long-running experiments and system health.
+- **autosota-agent-monitor-scheduler**: Specialized monitoring for scheduled Vast.ai jobs.
+- **autosota-agent-supervisor**: High-level oversight of multi-agent workflows.
+- **autosota-human-idea-ingest**: Facilitates human-in-the-loop idea refinement.
+
+### Specialized Skills
+- **structural-entropy-proposal**: Mathematical framework for proposal generation (Internal).
+- **autosota-paper-writer**: (NEW) Drafting ML research papers following high-star repo patterns.
+- **autosota-result-logger**: (NEW) Automated logging to WandB and GitHub with credential handling.
 
 ## Structure
 

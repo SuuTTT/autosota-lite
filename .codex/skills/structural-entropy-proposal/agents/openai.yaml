@@ -1,0 +1,7 @@
+interface:
+  display_name: "Structural Entropy Proposal"
+  short_description: "Design SE integrations for AI projects"
+  default_prompt: "Use $structural-entropy-proposal to propose a Structural Entropy integration for this baseline paper or repository."
+
+policy:
+  allow_implicit_invocation: true

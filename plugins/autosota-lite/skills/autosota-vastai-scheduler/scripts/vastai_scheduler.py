@@ -90,14 +90,16 @@ def ensure_ssh_key_registered() -> None:
 
 
 def instance_exists(instance_id: int) -> bool:
-    code, output = run_vastai(["show", "instances", "--raw"])
-    if code != 0:
-        return False
-    try:
-        rows = json.loads(output)
-    except json.JSONDecodeError:
-        return False
-    return any(row.get("id") == instance_id for row in rows if isinstance(row, dict))
+    for _ in range(3):
+        code, output = run_vastai(["show", "instances", "--raw"])
+        if code == 0:
+            try:
+                rows = json.loads(output)
+                return any(row.get("id") == instance_id for row in rows if isinstance(row, dict))
+            except json.JSONDecodeError:
+                pass
+        time.sleep(2)
+    return False
 
 
 def instance_logs(instance_id: int, tail: int = 200) -> str:
@@ -366,6 +368,7 @@ def create_instance(
 
 
 def monitor_cleanup(instance_id: int, timeout_minutes: float, poll_seconds: float) -> dict[str, Any]:
+    time.sleep(10)  # Avoid race condition where instance is not yet in 'show instances'
     deadline = time.time() + timeout_minutes * 60
     last_logs = ""
     saw_job_exit = False

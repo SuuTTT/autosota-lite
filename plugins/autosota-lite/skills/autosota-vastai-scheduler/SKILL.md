@@ -49,6 +49,66 @@ python3 /workspace/autosota-lite/plugins/autosota-lite/skills/autosota-vastai-sc
 
 The launch default image is `vastai/pytorch`, Vast.ai's standard PyTorch image family. Treat this as an image family, not a complete runtime contract: probe the selected instance for the Python executable that can import `torch` before running ML code. Override `--image` when the task requires a specific pinned CUDA/PyTorch/Python stack or a non-PyTorch runtime.
 
+## PyTorch Runtime Probe
+
+For ML jobs, probe the runtime inside `--job-cmd` before installing project dependencies. On Vast.ai PyTorch images, the usable Python often lives at `/venv/main/bin/python`; older PyTorch images may use `/opt/conda/bin/python`; bare `python` or system `python3` may be absent or may not import `torch`.
+
+Use this pattern:
+
+```bash
+PYTHON_BIN="${PYTHON_BIN:-/venv/main/bin/python}"
+if [[ ! -x "$PYTHON_BIN" ]]; then
+  if [[ -x /opt/conda/bin/python ]]; then
+    PYTHON_BIN=/opt/conda/bin/python
+  else
+    PYTHON_BIN="$(command -v python3)"
+  fi
+fi
+echo "PYTHON_BIN=$PYTHON_BIN"
+"$PYTHON_BIN" - <<'PY'
+import sys
+import torch
+print("python", sys.version.replace("\n", " "))
+print("torch", torch.__version__)
+print("torch_cuda", torch.version.cuda)
+print("cuda_available", torch.cuda.is_available())
+print("cuda_device", torch.cuda.get_device_name(0) if torch.cuda.is_available() else None)
+print("arch_list", torch.cuda.get_arch_list() if torch.cuda.is_available() else None)
+PY
+```
+
+## RTX 50-Series / `sm_120` Fix
+
+RTX 50-series GPUs can show this warning on the default Vast.ai PyTorch image:
+
+```text
+NVIDIA GeForce RTX 5060 Ti with CUDA capability sm_120 is not compatible with the current PyTorch installation.
+The current PyTorch install supports CUDA capabilities sm_50 sm_60 sm_70 sm_75 sm_80 sm_86 sm_90.
+```
+
+The warning points to the PyTorch install selector:
+
+```text
+https://pytorch.org/get-started/locally/
+```
+
+In testing on `vastai/pytorch:cuda-12.4.1-auto`, the preinstalled `/venv/main/bin/python` had `torch 2.11.0+cu126` without `sm_120` support. Installing the CUDA 12.8 nightly command without `--upgrade` did not replace it. The working fix was:
+
+```bash
+"$PYTHON_BIN" -m pip install --upgrade --pre torch torchvision torchaudio \
+  --index-url https://download.pytorch.org/whl/nightly/cu132
+```
+
+Verify success by checking that `torch.cuda.get_arch_list()` includes `sm_120` or `compute_120`. The tested successful environment reported:
+
+```text
+torch 2.13.0.dev20260427+cu132
+torch_cuda 13.2
+arch_list ['sm_75', 'sm_80', 'sm_86', 'sm_90', 'sm_100', 'sm_120', 'compute_120']
+```
+
+Use a longer `--cleanup-timeout-minutes` for 50-series first-run jobs because downloading nightly PyTorch wheels can take several minutes.
+
 Estimate only:
 
 ```bash
