@@ -12,6 +12,7 @@ import argparse
 import ast
 import json
 import math
+import os
 import shlex
 import subprocess
 import sys
@@ -122,10 +123,14 @@ def redact_sensitive(text: str) -> str:
     return text
 
 
+_SENSITIVE_SUBSTRINGS = frozenset(["api_key", "token", "secret", "password"])
+
+
 def redact_mapping(data: dict[str, Any]) -> dict[str, Any]:
     redacted = dict(data)
     for key in list(redacted):
-        if "api_key" in key.lower():
+        key_lower = key.lower()
+        if any(pat in key_lower for pat in _SENSITIVE_SUBSTRINGS):
             redacted[key] = "[redacted]"
     return redacted
 
@@ -324,6 +329,7 @@ def create_instance(
     use_ssh: bool,
     direct: bool,
     bid_price: float | None,
+    env_vars: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     args = [
         "create",
@@ -345,6 +351,10 @@ def create_instance(
         args.append("--direct")
     if bid_price is not None:
         args.extend(["--bid_price", str(bid_price)])
+    if env_vars:
+        # VastAI --env takes a single Docker-style string: "-e K1=V1 -e K2=V2"
+        env_str = " ".join(f"-e {k}={v}" for k, v in env_vars.items())
+        args.extend(["--env", env_str])
     code, output = run_vastai(args)
     if code != 0:
         raise RuntimeError(f"vastai create instance failed:\n{redact_sensitive(output)}")
@@ -368,7 +378,7 @@ def create_instance(
 
 
 def monitor_cleanup(instance_id: int, timeout_minutes: float, poll_seconds: float) -> dict[str, Any]:
-    time.sleep(10)  # Avoid race condition where instance is not yet in 'show instances'
+    time.sleep(5)  # Brief settle so the instance shows up in 'show instances'; short jobs may already be gone.
     deadline = time.time() + timeout_minutes * 60
     last_logs = ""
     saw_job_exit = False
@@ -468,6 +478,15 @@ def main() -> int:
     launch_parser.add_argument("--cleanup-poll-seconds", type=float, default=15.0)
     launch_parser.add_argument("--yes", action="store_true", help="Actually create the instance.")
     launch_parser.add_argument("--save-json", type=Path, default=None)
+    launch_parser.add_argument(
+        "--pass-env",
+        default="",
+        help=(
+            "Comma-separated env var names to read from the local environment and inject into "
+            "the container (e.g. WANDB_API_KEY,GITHUB_TOKEN). Values come from your shell — "
+            "never hardcode them here. Vars not set locally are skipped with a warning."
+        ),
+    )
 
     args = parser.parse_args()
     config = config_from_args(args)
@@ -497,6 +516,17 @@ def main() -> int:
     if args.ssh:
         ensure_ssh_key_registered()
 
+    env_vars: dict[str, str] = {}
+    for var_name in parse_csv(getattr(args, "pass_env", "")):
+        value = os.environ.get(var_name)
+        if value is None:
+            print(
+                f"Warning: --pass-env variable {var_name!r} is not set in the local environment; skipping.",
+                file=sys.stderr,
+            )
+        else:
+            env_vars[var_name] = value
+
     created = create_instance(
         offer_id=offer_id,
         image=args.image,
@@ -506,6 +536,7 @@ def main() -> int:
         use_ssh=args.ssh,
         direct=not args.no_direct,
         bid_price=suggested_bid_price(chosen) if config.offer_type == "bid" else None,
+        env_vars=env_vars or None,
     )
     result = {"created_at": now(), "offer": estimate["chosen_offer"], "create_response": redact_mapping(created)}
     contract_id = created.get("new_contract")

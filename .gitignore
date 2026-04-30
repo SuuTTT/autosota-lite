@@ -1,0 +1,19 @@
+# Secret files — never commit
+.env
+.env.local
+.env.*.local
+.secrets.yaml
+.secrets.json
+*.key
+*.pem
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Misc
+.DS_Store
+*.log

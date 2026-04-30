@@ -2,6 +2,18 @@
 
 A lightweight AutoSOTA-style workflow plugin for reproducing, auditing, improving, and estimating ML paper reproduction work.
 
+## Skill organization
+
+Keep discoverable skills directly under `skills/<skill-name>/SKILL.md`. The category map lives at `references/skill-map.md`; do not move skills into nested category directories unless Codex plugin discovery is confirmed to recurse through them.
+
+Primary categories:
+
+- Pipeline: `autosota-research-loop`, `autosota-optimization-pipeline`, scheduler, monitor, supervisor.
+- Reimplementation: `autosota-reimplementation`, setup and fix skills.
+- Optimization: `autosota-agent-ideator`, `autosota-human-idea-ingest`, `structural-entropy-proposal`.
+- Common operations: key management, result logging, notifications, Vast.ai.
+- Writing and publishing: paper writing, scientific writing reverse engineering, external-facing publishing.
+
 ## Runtime and Vast.ai cost estimator skill
 
 Use `autosota-runtime-cost-estimator` to estimate training/evaluation runtime and Vast.ai rental cost for ML/RL paper reproduction runs, AutoSOTA-style experiment loops, and concurrent RL workloads such as CleanRL with EnvPool.

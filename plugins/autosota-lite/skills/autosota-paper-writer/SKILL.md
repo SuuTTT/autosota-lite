@@ -1,4 +1,9 @@
-# SKILL: autosota-paper-writer
+---
+name: autosota-paper-writer
+description: Draft, revise, and export ML research manuscripts from AutoSOTA artifacts, experiment logs, methods, results, references, and model-paper writing patterns, including LaTeX paper directories and human-readable reports.
+---
+
+# AutoSOTA Paper Writer
 
 ## Purpose
 Automate the drafting of high-quality ML research papers by analyzing project artifacts (results, methodology, code) and following established patterns from top-tier conference publications (NeurIPS, ICLR, etc.).

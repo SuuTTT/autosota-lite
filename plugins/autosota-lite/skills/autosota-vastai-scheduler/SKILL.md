@@ -29,7 +29,19 @@ vastai set api-key YOUR_API_KEY
 
 If you use `--ssh`, the scheduler will automatically register your local `~/.ssh/id_ed25519.pub` (or `id_rsa.pub`) public key with Vast.ai if no keys are currently registered in your account. This ensures you can connect to the newly created instance from your current terminal.
 
-Do not put the account API key in `--job-cmd`, `--env`, logs, or chat. The scheduler redacts `instance_api_key` from its create output.
+Do not put the **Vast.ai account API key** in `--job-cmd`, `--env`, logs, or chat. The scheduler redacts `instance_api_key` from its create output.
+
+**Service credentials** (WandB, GitHub, etc.) are different — they must be injected into the container or the job inside cannot authenticate. Use the bundled `--pass-env` flag, which reads the named variables from your local shell and forwards them via the Vast.ai `--env` mechanism (which expects Docker-style `-e KEY=VALUE`):
+
+```bash
+export WANDB_API_KEY=...   # or load via .env.local
+python3 vastai_scheduler.py launch \
+  --pass-env WANDB_API_KEY,GITHUB_TOKEN \
+  --job-cmd 'pip install -q wandb && python3 train.py' \
+  ...
+```
+
+Variables listed in `--pass-env` that are not set locally print a warning and are skipped — they are never injected as empty values.
 
 `CONTAINER_ID` is not an API key. It is the instance/contract ID inside the rented container. Vast.ai also injects `CONTAINER_API_KEY` inside the instance; the remote cleanup script attempts:
 
@@ -148,7 +160,7 @@ python3 /workspace/autosota-lite/plugins/autosota-lite/skills/autosota-vastai-sc
 
 The default real launch waits for cleanup. Use `--no-monitor-cleanup` only for fire-and-forget jobs where another process will destroy the instance.
 
-Cheap hello-world validation:
+Cheap hello-world validation (no external services):
 
 ```bash
 python3 /workspace/autosota-lite/plugins/autosota-lite/skills/autosota-vastai-scheduler/scripts/vastai_scheduler.py launch \
@@ -165,6 +177,30 @@ python3 /workspace/autosota-lite/plugins/autosota-lite/skills/autosota-vastai-sc
   --cleanup-poll-seconds 10 \
   --yes
 ```
+
+WandB-logged hello-world (validates the full credential pipeline end-to-end):
+
+```bash
+set -a && source .env.local && set +a
+python3 /workspace/autosota-lite/plugins/autosota-lite/skills/autosota-vastai-scheduler/scripts/vastai_scheduler.py launch \
+  --runtime-hours 0.1 \
+  --disk-gb 5 \
+  --offer-type on-demand \
+  --image vastai/pytorch \
+  --pass-env WANDB_API_KEY \
+  --job-cmd 'pip install -q wandb && python3 -c "
+import wandb, os, sys
+if not os.getenv(\"WANDB_API_KEY\"): sys.exit(\"WANDB_API_KEY not injected\")
+run = wandb.init(project=\"autosota-helloworld\", name=\"vastai-helloworld\")
+run.log({\"hello\": 1.0, \"pi\": 3.14159})
+run.finish()
+"' \
+  --label autosota-helloworld \
+  --cleanup-timeout-minutes 15 \
+  --yes
+```
+
+After it finishes, verify the run at `https://wandb.ai/<entity>/autosota-helloworld`. Resolve `<entity>` via `check_keys.py` (it prints the WandB user/entity for the active key).
 
 Interruptible search or launch:
 
@@ -211,3 +247,15 @@ For real launches, the script injects an on-start command that:
 5. locally polls `vastai logs`, detects job exit, and destroys the contract as a fallback.
 
 Vast.ai supplies `CONTAINER_ID` and `CONTAINER_API_KEY` inside the instance, so the user's main API key is not copied into the container.
+
+### Reading the cleanup result
+
+The launcher emits a `cleanup` block in its final JSON. Three fields matter:
+
+- `gone`: instance no longer exists in `vastai show instances`. This is the success signal — billing has stopped.
+- `saw_job_exit`: the local monitor observed the `[vastai-scheduler] job exited` log line.
+- `local_destroyed`: the local monitor was the one that issued `vastai destroy instance`.
+
+For **fast jobs** (jobs that finish in under ~10 seconds), it is normal to see `gone: true, saw_job_exit: false, local_destroyed: false`. The container's onstart script self-destructed before the local monitor's first poll. Do not interpret this as a failure — `gone: true` is what proves cleanup succeeded.
+
+For **slow jobs**, expect `gone: true, saw_job_exit: true`. If you see `gone: false` after the timeout, the instance is still billing and needs `vastai destroy instance <id>` manually.
