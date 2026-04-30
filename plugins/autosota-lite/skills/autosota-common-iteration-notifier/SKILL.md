@@ -30,7 +30,39 @@ Next: <one requested action or next planned step>
 
 ## Slack
 
-When the Slack connector is available and the user asked to send, use the Slack workflow and post only after checking the destination. If sending is not available or not authorized, create a ready-to-send draft in the final response or a local artifact requested by the user.
+The bundled `notify.py` posts to Slack via an **Incoming Webhook** (one URL → one channel, no bot install).
 
-Do not include secrets, full stack traces, or huge logs in notifications. Link or reference artifact paths instead.
+### One-time setup
+
+1. https://api.slack.com/apps → **Create New App** → From scratch → name it (e.g. "AutoSOTA Notifier") → pick the workspace.
+2. Left sidebar → **Incoming Webhooks** → toggle **Activate** → **Add New Webhook to Workspace** → pick the channel.
+3. Copy the URL (`https://hooks.slack.com/services/T.../B.../...`).
+4. Store the URL in `.env.local` at the repo root (gitignored — see `autosota-common-key-manager`):
+
+   ```bash
+   echo 'SLACK_WEBHOOK_URL=https://hooks.slack.com/services/...' >> /workspace/autosota-lite/.env.local
+   ```
+
+5. Verify with `python3 plugins/autosota-lite/skills/autosota-common-key-manager/check_keys.py --services slack`.
+
+### Sending
+
+```bash
+python3 plugins/autosota-lite/skills/autosota-common-iteration-notifier/notify.py \
+  --project autosota-research/run-2026-04-30 \
+  --status complete \
+  --idea "se-001 structural-entropy regularizer" \
+  --metric "score 0.612 → 0.638" \
+  --validity valid \
+  --artifacts "https://wandb.ai/sudingli21/autosota/runs/abc123" \
+  --next-step "review and merge PR #42"
+```
+
+Use `--dry-run` first to preview the rendered message without sending.
+
+### Rules
+
+- Never paste the webhook URL into chat or commit it. The script reads it from env / `.env.local`.
+- Do not include secrets, full stack traces, or huge logs in notifications. Link or reference artifact paths instead.
+- If the webhook is missing or not authorized, fall back to printing the rendered message as a draft (use `--dry-run`).
 

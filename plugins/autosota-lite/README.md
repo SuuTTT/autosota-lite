@@ -2,6 +2,8 @@
 
 A lightweight AutoSOTA-style workflow plugin for reproducing, auditing, improving, and estimating ML paper reproduction work.
 
+It is recommand to run this repo in codex, create a new subdir as temperal workplace, and collect result from other launched vastai device
+
 ## Skill organization
 
 Keep discoverable skills directly under `skills/<skill-name>/SKILL.md`. The category map lives at `references/skill-map.md`; do not move skills into nested category directories unless Codex plugin discovery is confirmed to recurse through them.

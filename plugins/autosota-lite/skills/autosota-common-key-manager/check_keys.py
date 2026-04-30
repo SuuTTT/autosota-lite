@@ -123,6 +123,19 @@ def check_github() -> bool:
     return False
 
 
+def check_slack() -> bool:
+    url = os.getenv("SLACK_WEBHOOK_URL")
+    if not url:
+        print("[Slack] not set (optional — needed for autosota-common-iteration-notifier)")
+        print("  Fix: add SLACK_WEBHOOK_URL=https://hooks.slack.com/services/... to .env.local")
+        return True  # not required by default
+    if not url.startswith("https://hooks.slack.com/services/"):
+        print(f"[Slack] WARNING — SLACK_WEBHOOK_URL does not look like a webhook URL: {_redact(url)}")
+        return False
+    print(f"[Slack] OK — webhook configured ({_redact(url, show_chars=40)})")
+    return True
+
+
 def check_openai() -> bool:
     key = os.getenv("OPENAI_API_KEY")
     if key:
@@ -156,6 +169,7 @@ def main(argv: list[str] | None = None) -> int:
         "wandb": check_wandb,
         "vastai": check_vastai,
         "github": check_github,
+        "slack": check_slack,
         "openai": check_openai,
     }
 
