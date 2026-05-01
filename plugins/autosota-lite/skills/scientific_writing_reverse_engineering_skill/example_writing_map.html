@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Example: AI/RL Writing Map</title>
+  <style>
+    :root {
+      --bg: #f7f7f8;
+      --paper: #ffffff;
+      --ink: #202124;
+      --muted: #5f6368;
+      --accent: #2f6fed;
+      --accent-soft: #e8f0fe;
+      --warning: #9a6700;
+      --warning-soft: #fff3cd;
+      --border: #dadce0;
+      --shadow: 0 16px 40px rgba(32, 33, 36, 0.16);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.65;
+    }
+
+    main {
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 42px 20px 72px;
+    }
+
+    header { margin-bottom: 24px; }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: clamp(2rem, 4vw, 3rem);
+      line-height: 1.1;
+      letter-spacing: -0.04em;
+    }
+
+    .subtitle {
+      margin: 0;
+      color: var(--muted);
+      max-width: 840px;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 390px;
+      gap: 22px;
+      align-items: start;
+    }
+
+    .paper-section {
+      background: var(--paper);
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      padding: 28px;
+      margin: 0 0 22px;
+      box-shadow: 0 4px 18px rgba(32, 33, 36, 0.05);
+    }
+
+    h2 {
+      margin: 0 0 16px;
+      font-size: 0.92rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+    }
+
+    .rewritten-paper {
+      font-size: 1.08rem;
+      margin: 0;
+    }
+
+    .mapped-sentence {
+      position: relative;
+      display: inline;
+      padding: 2px 3px;
+      border-radius: 6px;
+      background-image: linear-gradient(var(--accent-soft), var(--accent-soft));
+      background-size: 100% 38%;
+      background-repeat: no-repeat;
+      background-position: 0 94%;
+      cursor: help;
+      outline: none;
+    }
+
+    .mapped-sentence:hover,
+    .mapped-sentence:focus,
+    .mapped-sentence.active {
+      background: var(--accent-soft);
+    }
+
+    .mapped-sentence.caution {
+      background-image: linear-gradient(var(--warning-soft), var(--warning-soft));
+    }
+
+    .mapped-sentence.caution:hover,
+    .mapped-sentence.caution:focus,
+    .mapped-sentence.caution.active {
+      background: var(--warning-soft);
+    }
+
+    .tooltip-card {
+      display: none;
+      position: absolute;
+      z-index: 20;
+      left: 0;
+      bottom: calc(100% + 12px);
+      width: min(560px, calc(100vw - 48px));
+      padding: 16px 18px;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: #fff;
+      color: var(--ink);
+      box-shadow: var(--shadow);
+      font-size: 0.9rem;
+      line-height: 1.45;
+    }
+
+    .tooltip-card::after {
+      content: "";
+      position: absolute;
+      left: 24px;
+      top: 100%;
+      border-width: 8px;
+      border-style: solid;
+      border-color: #fff transparent transparent transparent;
+    }
+
+    .mapped-sentence:hover .tooltip-card,
+    .mapped-sentence:focus .tooltip-card { display: block; }
+
+    .tooltip-kicker,
+    .inspector-kicker {
+      display: block;
+      margin-bottom: 10px;
+      color: var(--accent);
+      font-size: 0.76rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .tooltip-label,
+    .inspector-label {
+      display: block;
+      margin: 12px 0 4px;
+      color: var(--muted);
+      font-size: 0.76rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .tooltip-label.primary,
+    .inspector-label.primary { color: var(--accent); }
+    .tooltip-label.warning,
+    .inspector-label.warning { color: var(--warning); }
+
+    .tooltip-text,
+    .inspector-text { display: block; }
+
+    .inspector {
+      position: sticky;
+      top: 20px;
+      background: var(--paper);
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      padding: 22px;
+      box-shadow: 0 4px 18px rgba(32, 33, 36, 0.05);
+    }
+
+    .inspector h2 { margin-bottom: 8px; }
+    .inspector .hint { color: var(--muted); margin: 0 0 16px; font-size: 0.95rem; }
+    .inspector-block { border-top: 1px solid var(--border); padding-top: 12px; margin-top: 12px; }
+    .hidden { display: none; }
+
+    @media (max-width: 980px) {
+      .layout { grid-template-columns: 1fr; }
+      .inspector { position: static; }
+      .tooltip-card { width: min(520px, calc(100vw - 48px)); }
+    }
+
+    @media print {
+      body { background: #fff; }
+      main { padding: 0; }
+      .layout { display: block; }
+      .paper-section, .inspector { box-shadow: none; break-inside: avoid; }
+      .tooltip-card { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Example: AI/RL Writing Map</h1>
+      <p class="subtitle">Hover or click any highlighted rewritten sentence. The review card shows the <strong>model paper's original sentence</strong> first, then the abstract function, optional model pattern, optional project original sentence, and rewritten sentence.</p>
+    </header>
+    <div class="layout">
+      <div class="paper">
+        
+            <section class="paper-section">
+              <h2>Introduction</h2>
+              <p class="rewritten-paper"><span id="s1" class="mapped-sentence" tabindex="0" data-index="1" data-section="Introduction" data-sentence-index="1" data-model="Reinforcement learning has produced striking advances in games and simulated control, yet deploying these methods in open-ended decision-making settings remains difficult." data-function="Acknowledges broad progress in the field while narrowing to a persistent deployment challenge." data-pattern="X has produced advances in Y, yet Z remains difficult." data-project-original="Logged agent traces contain sparse success labels." data-rewrite="Language-model agents have achieved promising results in tool-use and web-navigation tasks, yet improving them from narrow logged traces remains difficult." data-caution="">Language-model agents have achieved promising results in tool-use and web-navigation tasks, yet improving them from narrow logged traces remains difficult.<span class="tooltip-card" role="tooltip"><span class="tooltip-kicker">Introduction sentence 1</span><span class="tooltip-label primary">Model paper sentence</span><span class="tooltip-text">Reinforcement learning has produced striking advances in games and simulated control, yet deploying these methods in open-ended decision-making settings remains difficult.</span><span class="tooltip-label">Abstract function</span><span class="tooltip-text">Acknowledges broad progress in the field while narrowing to a persistent deployment challenge.</span><span class="tooltip-label">Model pattern</span><span class="tooltip-text">X has produced advances in Y, yet Z remains difficult.</span><span class="tooltip-label">Project original sentence</span><span class="tooltip-text">Logged agent traces contain sparse success labels.</span></span></span>
+<span id="s2" class="mapped-sentence" tabindex="0" data-index="2" data-section="Introduction" data-sentence-index="2" data-model="A central obstacle is that exploration in sparse-reward environments yields trajectories that are expensive to collect and weakly informative for credit assignment." data-function="Identifies the main technical obstacle and explains why it creates learning difficulty." data-pattern="A central obstacle is that A yields B that are C and D." data-project-original="The project proposes TraceQ to convert trace outcomes into action-level targets." data-rewrite="A central obstacle is that logged agent executions usually provide only sparse outcome labels, leaving intermediate decisions weakly supervised for credit assignment." data-caution="">A central obstacle is that logged agent executions usually provide only sparse outcome labels, leaving intermediate decisions weakly supervised for credit assignment.<span class="tooltip-card" role="tooltip"><span class="tooltip-kicker">Introduction sentence 2</span><span class="tooltip-label primary">Model paper sentence</span><span class="tooltip-text">A central obstacle is that exploration in sparse-reward environments yields trajectories that are expensive to collect and weakly informative for credit assignment.</span><span class="tooltip-label">Abstract function</span><span class="tooltip-text">Identifies the main technical obstacle and explains why it creates learning difficulty.</span><span class="tooltip-label">Model pattern</span><span class="tooltip-text">A central obstacle is that A yields B that are C and D.</span><span class="tooltip-label">Project original sentence</span><span class="tooltip-text">The project proposes TraceQ to convert trace outcomes into action-level targets.</span></span></span>
+<span id="s3" class="mapped-sentence" tabindex="0" data-index="3" data-section="Introduction" data-sentence-index="3" data-model="We introduce Preference-Weighted Offline Policy Optimization, an algorithm that converts pairwise trajectory preferences into conservative advantage estimates." data-function="Introduces the proposed method and states what it converts or transforms." data-pattern="We introduce X, a method that converts A into B." data-project-original="" data-rewrite="We introduce TraceQ, an offline reinforcement-learning framework that converts execution traces and outcome judgments into calibrated action-level advantage targets." data-caution="">We introduce TraceQ, an offline reinforcement-learning framework that converts execution traces and outcome judgments into calibrated action-level advantage targets.<span class="tooltip-card" role="tooltip"><span class="tooltip-kicker">Introduction sentence 3</span><span class="tooltip-label primary">Model paper sentence</span><span class="tooltip-text">We introduce Preference-Weighted Offline Policy Optimization, an algorithm that converts pairwise trajectory preferences into conservative advantage estimates.</span><span class="tooltip-label">Abstract function</span><span class="tooltip-text">Introduces the proposed method and states what it converts or transforms.</span><span class="tooltip-label">Model pattern</span><span class="tooltip-text">We introduce X, a method that converts A into B.</span></span></span></p>
+            </section>
+            
+      </div>
+      <aside class="inspector" aria-live="polite">
+        <h2>Sentence map</h2>
+        <p class="hint">Hover or click a rewritten sentence to inspect its model sentence and rhetorical function.</p>
+        <div class="inspector-block">
+          <span class="inspector-kicker" id="inspector-kicker">No sentence selected</span>
+          <span class="inspector-label primary">Model paper sentence</span>
+          <span class="inspector-text" id="inspector-model">Select a sentence to view the model paper sentence.</span>
+          <span class="inspector-label">Abstract function</span>
+          <span class="inspector-text" id="inspector-function">—</span>
+          <div id="pattern-block" class="hidden">
+            <span class="inspector-label">Model pattern</span>
+            <span class="inspector-text" id="inspector-pattern">—</span>
+          </div>
+          <div id="project-original-block" class="hidden">
+            <span class="inspector-label">Project original sentence</span>
+            <span class="inspector-text" id="inspector-project-original">—</span>
+          </div>
+          <span class="inspector-label">Rewritten sentence</span>
+          <span class="inspector-text" id="inspector-rewrite">—</span>
+          <div id="caution-block" class="hidden">
+            <span class="inspector-label warning">Caution</span>
+            <span class="inspector-text" id="inspector-caution">—</span>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </main>
+  <script>
+    const fields = {
+      kicker: document.getElementById('inspector-kicker'),
+      model: document.getElementById('inspector-model'),
+      functionText: document.getElementById('inspector-function'),
+      pattern: document.getElementById('inspector-pattern'),
+      patternBlock: document.getElementById('pattern-block'),
+      projectOriginal: document.getElementById('inspector-project-original'),
+      projectOriginalBlock: document.getElementById('project-original-block'),
+      rewrite: document.getElementById('inspector-rewrite'),
+      caution: document.getElementById('inspector-caution'),
+      cautionBlock: document.getElementById('caution-block')
+    };
+
+    function setText(el, text) { el.textContent = text || '—'; }
+    function toggleBlock(block, text) { block.classList.toggle('hidden', !(text && text.trim())); }
+
+    function inspectSentence(span) {
+      document.querySelectorAll('.mapped-sentence.active').forEach(s => s.classList.remove('active'));
+      span.classList.add('active');
+      const section = span.dataset.section || 'Draft';
+      const idx = span.dataset.sentenceIndex || span.dataset.index || '';
+      setText(fields.kicker, `${section} sentence ${idx}`);
+      setText(fields.model, span.dataset.model);
+      setText(fields.functionText, span.dataset.function);
+      setText(fields.pattern, span.dataset.pattern);
+      toggleBlock(fields.patternBlock, span.dataset.pattern);
+      setText(fields.projectOriginal, span.dataset.projectOriginal);
+      toggleBlock(fields.projectOriginalBlock, span.dataset.projectOriginal);
+      setText(fields.rewrite, span.dataset.rewrite || span.textContent);
+      setText(fields.caution, span.dataset.caution);
+      toggleBlock(fields.cautionBlock, span.dataset.caution);
+    }
+
+    document.querySelectorAll('.mapped-sentence').forEach(span => {
+      span.addEventListener('mouseenter', () => inspectSentence(span));
+      span.addEventListener('focus', () => inspectSentence(span));
+      span.addEventListener('click', () => inspectSentence(span));
+    });
+  </script>
+</body>
+</html>

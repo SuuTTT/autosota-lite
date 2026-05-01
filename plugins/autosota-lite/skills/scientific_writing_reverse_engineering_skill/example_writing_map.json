@@ -1,0 +1,28 @@
+[
+  {
+    "section": "Introduction",
+    "sentence_index": 1,
+    "model_original_sentence": "Reinforcement learning has produced striking advances in games and simulated control, yet deploying these methods in open-ended decision-making settings remains difficult.",
+    "abstract_sentence_function": "Acknowledges broad progress in the field while narrowing to a persistent deployment challenge.",
+    "model_pattern": "X has produced advances in Y, yet Z remains difficult.",
+    "project_original_sentence": "Logged agent traces contain sparse success labels.",
+    "rewritten_sentence": "Language-model agents have achieved promising results in tool-use and web-navigation tasks, yet improving them from narrow logged traces remains difficult."
+  },
+  {
+    "section": "Introduction",
+    "sentence_index": 2,
+    "model_original_sentence": "A central obstacle is that exploration in sparse-reward environments yields trajectories that are expensive to collect and weakly informative for credit assignment.",
+    "abstract_sentence_function": "Identifies the main technical obstacle and explains why it creates learning difficulty.",
+    "model_pattern": "A central obstacle is that A yields B that are C and D.",
+    "project_original_sentence": "The project proposes TraceQ to convert trace outcomes into action-level targets.",
+    "rewritten_sentence": "A central obstacle is that logged agent executions usually provide only sparse outcome labels, leaving intermediate decisions weakly supervised for credit assignment."
+  },
+  {
+    "section": "Introduction",
+    "sentence_index": 3,
+    "model_original_sentence": "We introduce Preference-Weighted Offline Policy Optimization, an algorithm that converts pairwise trajectory preferences into conservative advantage estimates.",
+    "abstract_sentence_function": "Introduces the proposed method and states what it converts or transforms.",
+    "model_pattern": "We introduce X, a method that converts A into B.",
+    "rewritten_sentence": "We introduce TraceQ, an offline reinforcement-learning framework that converts execution traces and outcome judgments into calibrated action-level advantage targets."
+  }
+]
