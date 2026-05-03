@@ -1,0 +1,43 @@
+{
+  "os":  "Linux-6.5.0-41-generic-x86_64-with-glibc2.39",
+  "python":  "CPython 3.12.3",
+  "startedAt":  "2026-05-03T09:16:57.710118Z",
+  "args":  [
+    "projectrl-485417"
+  ],
+  "program":  "/workspace/autosota-lite/plugins/autosota-lite/skills/autosota-common-key-manager/test_full_workflow.py",
+  "codePath":  "plugins/autosota-lite/skills/autosota-common-key-manager/test_full_workflow.py",
+  "codePathLocal":  "test_full_workflow.py",
+  "git":  {
+    "remote":  "https://github.com/SuuTTT/autosota-lite.git",
+    "commit":  "1e89db150d6b953b630ef8be96170743a2ae3f7d"
+  },
+  "email":  "1015011749@qq.com",
+  "root":  "/workspace/autosota-lite/plugins/autosota-lite/skills/autosota-common-key-manager",
+  "host":  "ed548af02302",
+  "executable":  "/usr/bin/python3",
+  "cpu_count":  14,
+  "cpu_count_logical":  28,
+  "gpu":  "NVIDIA GeForce RTX 3060",
+  "gpu_count":  1,
+  "disk":  {
+    "/":  {
+      "total":  "34359738368",
+      "used":  "31012556800"
+    }
+  },
+  "memory":  {
+    "total":  "67245780992"
+  },
+  "gpu_nvidia":  [
+    {
+      "name":  "NVIDIA GeForce RTX 3060",
+      "memoryTotal":  "12884901888",
+      "cudaCores":  3584,
+      "architecture":  "Ampere",
+      "uuid":  "GPU-07db0b58-04b1-4b4e-5f2a-5375d72ecb77"
+    }
+  ],
+  "cudaVersion":  "12.5",
+  "writerId":  "eu5lyc450sij8ndvo8w25g8uafoi181c"
+}

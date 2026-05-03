@@ -1,111 +1,190 @@
 ---
 name: autosota-common-key-manager
-description: Manage API keys and service credentials for AutoSOTA workflows, including WandB, GitHub, Vast.ai, Slack, Overleaf, blogs, and publishing tools, without exposing secrets in chat, logs, commands, or committed files.
+description: Manage API credentials securely for WandB, Slack, Gmail, and GitHub integrations. Supports both local (.env.local) and GCP Secret Manager storage.
 ---
 
 # AutoSOTA Common Key Manager
 
-Use this skill before connecting AutoSOTA runs to external services or when a key, token, or credential path is missing.
+Securely manage credentials for WandB, Slack, Gmail, and GitHub. No secrets in chat, logs, or git.
+
+## Quick Start
+
+**Use mode** (for agents/developers):
+```python
+# Credentials are automatically loaded from GCP or .env.local
+# Just call your service:
+import wandb
+wandb.init(project="my-project")  # Uses WANDB_API_KEY
+wandb.log({"loss": 0.5})
+```
+
+**Deploy mode** (one-time setup):
+```bash
+# 1. Add credentials to /workspace/autosota-lite/.env.local
+# 2. Verify they work:
+python3 check_keys.py --services wandb,slack,email
+# 3. (Optional) Push to GCP Secret Manager:
+python3 enable_and_setup_secrets.py
+```
+
+---
+
+## Mode 1: Deploy (One-Time Setup)
+
+### Option A: Local Only (.env.local)
+
+**Best for:** Local dev, quick testing
+
+1. Create `/workspace/autosota-lite/.env.local`:
+```
+WANDB_API_KEY=wandb_v1_xxxxx
+SLACK_WEBHOOK_URL=https://hooks.slack.com/services/T00/B00/xxx
+GMAIL_USER=your.email@gmail.com
+GMAIL_APP_PASSWORD=xxxx xxxx xxxx xxxx
+```
+
+2. Verify:
+```bash
+cd plugins/autosota-lite/skills/autosota-common-key-manager
+python3 check_keys.py --services wandb,slack,email
+```
+
+### Option B: GCP Secret Manager
+
+**Best for:** Production, shared environments
+
+1. **Enable API** (manual step in GCP console):
+   - Visit: https://console.cloud.google.com/apis/library/secretmanager.googleapis.com?project=projectrl-485417
+   - Click **ENABLE**
+
+2. **Store credentials**:
+```bash
+cd plugins/autosota-lite/skills/autosota-common-key-manager
+python3 enable_and_setup_secrets.py
+```
+
+3. **Verify**:
+```bash
+export GCP_PROJECT_ID=projectrl-485417
+python3 check_keys.py --gcp-project projectrl-485417 --services wandb,slack,email
+```
+
+---
+
+## Mode 2: Use (Agent/Developer Usage)
+
+Credentials are automatically loaded. Just use the services:
+
+### WandB Logging
+```python
+import wandb
+
+wandb.init(project="my-project", entity="my-entity")
+wandb.log({"step": 1, "loss": 0.5, "accuracy": 0.95})
+wandb.finish()
+```
+
+### Slack Notification
+```python
+import requests
+import os
+
+webhook_url = os.getenv("SLACK_WEBHOOK_URL")
+requests.post(webhook_url, json={"text": "Training complete!"})
+```
+
+### Gmail Notification
+```python
+import smtplib
+from email.mime.text import MIMEText
+import os
+
+msg = MIMEText("Training complete!")
+msg["Subject"] = "Run finished"
+msg["From"] = os.getenv("GMAIL_USER")
+msg["To"] = os.getenv("GMAIL_USER")
+
+with smtplib.SMTP("smtp.gmail.com", 587) as server:
+    server.starttls()
+    server.login(os.getenv("GMAIL_USER"), os.getenv("GMAIL_APP_PASSWORD"))
+    server.send_message(msg)
+```
+
+---
+
+## Service Credentials Map
+
+| Service | Env Var(s) | GCP Secret | Need? |
+|---------|-----------|-----------|-------|
+| WandB | `WANDB_API_KEY` | `autosota-wandb-api-key` | ✓ Yes |
+| Slack | `SLACK_WEBHOOK_URL` | `autosota-slack-webhook-url` | Optional |
+| Gmail | `GMAIL_USER`, `GMAIL_APP_PASSWORD` | `autosota-gmail-user`, `autosota-gmail-app-password` | Optional |
+| GitHub | `GITHUB_TOKEN` | N/A | Optional |
+
+### Getting Credentials
+
+**WandB API Key:**
+- https://wandb.ai/settings/keys
+
+**Slack Webhook URL:**
+- https://api.slack.com/apps → Your App → Incoming Webhooks
+
+**Gmail App Password:**
+- https://myaccount.google.com/apppasswords (requires 2FA enabled)
+- Select "Mail" and "Windows Computer"
+
+---
+
+## Load Priority
+
+Credentials are loaded in this order:
+1. Shell environment variables (highest priority)
+2. GCP Secret Manager (if `GCP_PROJECT_ID` is set)
+3. `.env.local` file (fallback)
+
+---
 
 ## Rules
 
-- Never ask the user to paste private keys or tokens into chat.
-- Never commit `.env`, `.env.local`, key files, shell history, service tokens, or generated credential caches.
-- Prefer environment variables, service CLIs, OS keychains, or project-local ignored config files.
-- Redact secrets in logs and command summaries.
-- If a secret was pasted into chat or committed, advise rotation and remove the committed value without repeating it.
+- Never paste secrets into chat, logs, or commit to git
+- Never commit `.env` or `.env.local` files
+- `.env.local` is gitignored — keep credentials there
+- Redact secrets in output (show only first 6 chars)
+- Rotate keys immediately if exposed
 
-## Local Secret Storage (`.env.local`)
+---
 
-Keep service credentials in a single `.env.local` file at the repo root. This file is never committed.
+## Troubleshooting
 
-```bash
-# .env.local  (gitignored — never commit)
-WANDB_API_KEY=your_key_here
-GITHUB_TOKEN=your_token_here
-OPENAI_API_KEY=your_key_here
-```
+**"credentials not found"**
+- Verify `.env.local` exists and is readable
+- Or verify GCP Secret Manager has the secrets with: `python3 list_secrets.py`
 
-Source it in your shell session before running any job:
+**"SMTP login failed"**
+- Use Gmail **app password**, not your account password
+- Get it from: https://myaccount.google.com/apppasswords
 
-```bash
-set -a && source .env.local && set +a
-```
+**"Secret Manager API not enabled"**
+- Enable manually: https://console.cloud.google.com/apis/library/secretmanager.googleapis.com
+- Then run: `python3 enable_and_setup_secrets.py`
 
-Or use `--load-env-local` in `check_keys.py` (it loads the file automatically if it exists).
+---
 
-Always verify `.env.local` is gitignored:
-
-```bash
-grep -q '.env.local' .gitignore || echo '.env.local' >> .gitignore
-grep -q '.env' .gitignore || echo '.env' >> .gitignore
-```
-
-## Service Map
-
-| Service | Primary method | Fallback |
-|---------|---------------|---------|
-| WandB | `WANDB_API_KEY` env var | `wandb login` → `~/.netrc` |
-| GitHub | `GITHUB_TOKEN` env var | `gh auth login` or configured connector |
-| Vast.ai | `vastai set api-key` → `~/.vast_api_key` | `VASTAI_API_KEY` env var |
-| Slack | Configured Slack connector | Do not store bot tokens in repo |
-| Overleaf/blogs | Connector or local CLI auth | Create draft artifact for manual posting |
-| OpenAI | `OPENAI_API_KEY` env var | Fallback to browser-based research |
-
-## Verification
-
-Before any job launch, run the bundled checker to confirm credentials are ready:
+## Commands Reference
 
 ```bash
-python3 /workspace/autosota-lite/plugins/autosota-lite/skills/autosota-common-key-manager/check_keys.py
-# Or check specific services only:
-python3 check_keys.py --services wandb,vastai
+# Verify credentials are ready
+python3 check_keys.py --services wandb,slack,email
+
+# Load from GCP and verify
+python3 check_keys.py --gcp-project projectrl-485417 --services wandb,slack,email
+
+# Store all credentials in GCP
+python3 enable_and_setup_secrets.py
+
+# List secrets in GCP
+python3 list_secrets.py projectrl-485417
+
+# Full integration test (log to WandB, post to Slack, email report)
+python3 test_full_workflow.py projectrl-485417
 ```
-
-Exit code 0 = all ready. Non-zero = something needs attention.
-
-## Injecting Service Keys into Remote Jobs (Vast.ai)
-
-The Vast.ai **account** API key must never appear in `--job-cmd`, `--env`, logs, or chat. Vast.ai handles it internally via `CONTAINER_API_KEY` inside the container.
-
-**Service credentials** (WandB, GitHub, etc.) must be injected explicitly, because the container has no access to your local environment. Use `--pass-env` in the vastai scheduler:
-
-```bash
-export WANDB_API_KEY=...   # set locally (or loaded from .env.local)
-
-python3 vastai_scheduler.py launch \
-  --job-cmd 'pip install -q wandb && python3 train.py' \
-  --pass-env WANDB_API_KEY \
-  --runtime-hours 2 \
-  --yes
-```
-
-`--pass-env` reads the named env vars from your **local** shell and injects them into the container via `vastai create instance --env`. The values never appear in chat or git history — only in Vast.ai's runtime environment for that specific instance.
-
-You can pass multiple vars:
-
-```bash
---pass-env WANDB_API_KEY,GITHUB_TOKEN
-```
-
-Any var listed in `--pass-env` that is missing locally will print a warning and be skipped, not silently injected as empty.
-
-## Workflow
-
-1. Identify the service and action: read, write, upload, notify, rent, publish, or sync.
-2. Run `check_keys.py --services <services>` to verify credentials without printing secret values.
-3. Source `.env.local` if env vars are not already exported.
-4. Verify minimum permissions with a harmless read or dry-run when possible.
-5. Write only non-secret config to tracked files.
-6. Add missing ignored secret paths to `.gitignore` when needed.
-7. For remote jobs: use `--pass-env` to forward only the service credentials that the job requires.
-
-## Key Rotation
-
-If a credential is suspected compromised or was accidentally exposed in chat or a commit:
-
-1. Immediately revoke the key in the service dashboard (WandB → Settings → API keys; Vast.ai → Account → API keys).
-2. Generate a replacement key.
-3. Update `.env.local` (or `vastai set api-key`) with the new key.
-4. If it was committed: remove from git history with `git filter-repo` or open a private fork. Do not use `--force-push` to a shared branch without team coordination.
-5. Re-run `check_keys.py` to confirm the new key is active.

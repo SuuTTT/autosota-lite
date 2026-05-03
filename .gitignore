@@ -17,3 +17,5 @@ venv/
 # Misc
 .DS_Store
 *.log
+plugins/test
+*.zip

@@ -1,0 +1,21 @@
+{
+  "paper": {
+    "title": "TRACE: Transition-Graph Regularization via Adaptive Coding Entropy for Data-Driven Control",
+    "method_name": "TRACE"
+  },
+  "planned_experiments": {
+    "tasks": [
+      "Walker Walk",
+      "Cheetah Run",
+      "Cartpole Swingup",
+      "Reacher Easy"
+    ],
+    "methods": [
+      "TRACE",
+      "TD-MPC2",
+      "DreamerV3",
+      "PlaNet"
+    ],
+    "seeds": 5
+  }
+}

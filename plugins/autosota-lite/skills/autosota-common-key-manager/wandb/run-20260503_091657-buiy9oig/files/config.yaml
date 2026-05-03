@@ -1,0 +1,49 @@
+_wandb:
+    value:
+        cli_version: 0.26.1
+        e:
+            eu5lyc450sij8ndvo8w25g8uafoi181c:
+                args:
+                    - projectrl-485417
+                codePath: plugins/autosota-lite/skills/autosota-common-key-manager/test_full_workflow.py
+                codePathLocal: test_full_workflow.py
+                cpu_count: 14
+                cpu_count_logical: 28
+                cudaVersion: "12.5"
+                disk:
+                    /:
+                        total: "34359738368"
+                        used: "31012556800"
+                email: 1015011749@qq.com
+                executable: /usr/bin/python3
+                git:
+                    commit: 1e89db150d6b953b630ef8be96170743a2ae3f7d
+                    remote: https://github.com/SuuTTT/autosota-lite.git
+                gpu: NVIDIA GeForce RTX 3060
+                gpu_count: 1
+                gpu_nvidia:
+                    - architecture: Ampere
+                      cudaCores: 3584
+                      memoryTotal: "12884901888"
+                      name: NVIDIA GeForce RTX 3060
+                      uuid: GPU-07db0b58-04b1-4b4e-5f2a-5375d72ecb77
+                host: ed548af02302
+                memory:
+                    total: "67245780992"
+                os: Linux-6.5.0-41-generic-x86_64-with-glibc2.39
+                program: /workspace/autosota-lite/plugins/autosota-lite/skills/autosota-common-key-manager/test_full_workflow.py
+                python: CPython 3.12.3
+                root: /workspace/autosota-lite/plugins/autosota-lite/skills/autosota-common-key-manager
+                startedAt: "2026-05-03T09:16:57.710118Z"
+                writerId: eu5lyc450sij8ndvo8w25g8uafoi181c
+        m: []
+        python_version: 3.12.3
+        t:
+            "3":
+                - 2
+            "4": 3.12.3
+            "5": 0.26.1
+            "10":
+                - 21
+            "12": 0.26.1
+            "13": linux-x86_64

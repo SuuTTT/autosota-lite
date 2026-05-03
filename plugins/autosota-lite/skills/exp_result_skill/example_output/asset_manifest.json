@@ -1,0 +1,75 @@
+{
+  "assets": [
+    {
+      "path": "editable_review.html",
+      "type": "editable_html_workbench"
+    },
+    {
+      "path": "result_workbench.json",
+      "type": "source_workbench_json"
+    },
+    {
+      "path": "review.md",
+      "type": "markdown_fallback"
+    },
+    {
+      "path": "results_section.tex",
+      "type": "latex_results_section"
+    },
+    {
+      "path": "tables/setup.tex",
+      "type": "latex_table",
+      "section": "setup"
+    },
+    {
+      "path": "tables/main_results.tex",
+      "type": "latex_table",
+      "section": "main_results"
+    },
+    {
+      "path": "editable_review.html#learning_efficiency",
+      "type": "multi_panel_visualization",
+      "section": "learning_efficiency",
+      "panels": 4
+    },
+    {
+      "path": "tables/ablation.tex",
+      "type": "latex_table",
+      "section": "ablation"
+    },
+    {
+      "path": "editable_review.html#generalization",
+      "type": "multi_panel_visualization",
+      "section": "generalization",
+      "panels": 3
+    },
+    {
+      "path": "editable_review.html#robustness",
+      "type": "multi_panel_visualization",
+      "section": "robustness",
+      "panels": 3
+    },
+    {
+      "path": "editable_review.html#scalability_curve",
+      "type": "multi_panel_visualization",
+      "section": "scalability_curve",
+      "panels": 3
+    },
+    {
+      "path": "tables/efficiency_table.tex",
+      "type": "latex_table",
+      "section": "efficiency_table"
+    },
+    {
+      "path": "editable_review.html#qualitative",
+      "type": "multi_panel_visualization",
+      "section": "qualitative",
+      "panels": 3
+    },
+    {
+      "path": "tables/failure_cases.tex",
+      "type": "latex_table",
+      "section": "failure_cases"
+    }
+  ]
+}

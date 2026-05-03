@@ -1,0 +1,486 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Editable Experiment Workbench</title>
+<style>
+:root { --bg:#f6f7fb; --panel:#fff; --ink:#1f2937; --muted:#667085; --line:#e5e7eb; --accent:#2563eb; --soft:#f8fafc; }
+* { box-sizing: border-box; }
+body { margin:0; font-family: Inter, Arial, sans-serif; background:var(--bg); color:var(--ink); }
+header { padding:18px 28px; background:#111827; color:white; position:sticky; top:0; z-index:5; box-shadow:0 2px 10px #0004; }
+header h1 { margin:0 0 6px; font-size:20px; }
+header .sub { color:#cbd5e1; font-size:13px; }
+main { padding:22px; max-width:1700px; margin:auto; }
+.warning { padding:12px 14px; background:#fff7ed; border:1px solid #fdba74; border-radius:12px; margin-bottom:16px; }
+.legend { display:flex; flex-wrap:wrap; gap:8px; margin:12px 0 20px; }
+.badge { display:inline-block; border-radius:999px; padding:3px 8px; font-size:10px; font-weight:700; white-space:nowrap; }
+.grid { display:grid; grid-template-columns: 260px 1fr; gap:18px; align-items:start; }
+nav { position:sticky; top:86px; background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:12px; max-height:calc(100vh - 110px); overflow:auto; }
+nav a { display:block; padding:8px 10px; border-radius:9px; text-decoration:none; color:#374151; font-size:13px; }
+nav a:hover { background:#eef2ff; color:#1d4ed8; }
+.section-panel { background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:16px; margin-bottom:18px; box-shadow:0 1px 2px #0000000f; }
+.section-panel h2 { margin:0 0 4px; font-size:19px; }
+.desc { color:var(--muted); margin-bottom:12px; font-size:13px; }
+.toolbar, .group-controls { display:flex; flex-wrap:wrap; gap:8px; margin:10px 0; align-items:center; }
+button { border:1px solid #cbd5e1; background:white; border-radius:9px; padding:7px 10px; cursor:pointer; font-size:12px; }
+button:hover { border-color:#2563eb; color:#2563eb; }
+input, select { border:1px solid #cbd5e1; border-radius:8px; padding:5px 7px; font-size:12px; background:white; }
+label { font-size:12px; color:#334155; display:inline-flex; gap:5px; align-items:center; }
+table { border-collapse:collapse; width:100%; font-size:13px; background:white; }
+th, td { border:1px solid #e5e7eb; padding:8px; vertical-align:top; min-width:110px; }
+th { background:#f8fafc; position:sticky; top:77px; z-index:1; }
+td[contenteditable="true"], .editable-value { background:#fff; outline:0; }
+.editable-value:focus { box-shadow:inset 0 0 0 2px #2563eb; }
+.cellprov { margin-top:5px; display:flex; gap:5px; align-items:center; justify-content:space-between; }
+.cellprov select { font-size:11px; max-width:130px; }
+.group-box { border:1px solid #e2e8f0; background:#fbfdff; border-radius:14px; padding:12px; margin:12px 0 14px; }
+.group-box h3 { margin:0 0 8px; font-size:14px; }
+.config-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap:8px; }
+.config-editor summary { cursor:pointer; font-size:13px; color:#1d4ed8; margin:8px 0; }
+.panel-grid { display:grid; gap:16px; align-items:start; }
+.chart-card { border:1px solid #e5e7eb; border-radius:14px; padding:12px; background:#fcfcfd; }
+.chart-card h3 { margin:0 0 4px; font-size:15px; display:flex; gap:8px; align-items:center; }
+.panel-letter { display:inline-flex; width:22px; height:22px; border-radius:999px; background:#111827; color:white; align-items:center; justify-content:center; font-size:12px; }
+.chart-meta { color:#667085; font-size:12px; margin-bottom:8px; display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+.shared-legend { display:flex; flex-wrap:wrap; gap:14px; align-items:center; padding:8px 10px; border:1px solid #e5e7eb; border-radius:12px; background:white; margin:10px 0; font-size:12px; }
+.legend-item { display:inline-flex; align-items:center; gap:6px; }
+.legend-line { width:18px; height:0; border-top:3px solid #000; display:inline-block; }
+.chartwrap { display:grid; grid-template-columns:minmax(340px, 1fr) minmax(280px, 0.75fr); gap:12px; align-items:start; }
+.svgbox { border:1px solid #e5e7eb; border-radius:12px; background:white; overflow:auto; padding:6px; }
+textarea { width:100%; min-height:230px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size:12px; border:1px solid #cbd5e1; border-radius:10px; padding:10px; }
+textarea.config-json { min-height:270px; }
+.heatmap-cell { stroke:white; stroke-width:2; }
+.footerbar { margin:22px 0; display:flex; gap:10px; flex-wrap:wrap; }
+.small { font-size:12px; color:#667085; }
+.modified-note { color:#b45309; font-size:12px; font-weight:700; }
+@media (max-width: 1050px) {
+  .grid { grid-template-columns:1fr; }
+  nav { position:relative; top:0; }
+  .chartwrap { grid-template-columns:1fr; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1 id="page-title"></h1>
+  <div class="sub">Editable provisional experiment dashboard. Multi-panel figures use a shared JSON config plus per-panel data.</div>
+</header>
+<main>
+  <div class="warning"><strong>Draft-only:</strong> artificial and estimated data are placeholders for planning/layout review. Replace before paper submission.</div>
+  <div class="legend" id="legend"></div>
+  <div class="footerbar">
+    <button onclick="downloadJSON('workbench_modified.json', state)">Export whole workbench JSON</button>
+    <button onclick="exportHTMLSnapshot()">Export self-contained HTML snapshot</button>
+  </div>
+  <div class="grid">
+    <nav id="nav"></nav>
+    <section id="sections"></section>
+  </div>
+</main>
+
+<script id="initial-data" type="application/json">{"paper": {"title": "TRACE: Transition-Graph Regularization via Adaptive Coding Entropy for Data-Driven Control", "method_name": "TRACE"}, "provenanceLegend": {"experimented": {"label": "EXPERIMENTED", "color": "#d9f7df", "text": "#155724"}, "public": {"label": "PUBLIC", "color": "#dbeafe", "text": "#1e3a8a"}, "estimated": {"label": "ESTIMATED", "color": "#fff3cd", "text": "#7a4b00"}, "artificial": {"label": "ARTIFICIAL", "color": "#fde2e2", "text": "#8a1f1f"}, "modified": {"label": "MODIFIED", "color": "#eadcff", "text": "#4b227a"}, "derived": {"label": "DERIVED", "color": "#eeeeee", "text": "#444"}}, "defaultPanelLayout": {"columns": 2, "panelWidth": 520, "panelHeight": 320, "fontSize": 12, "markerSize": 3, "legendPosition": "right", "showEnvelope": true}, "sections": [{"id": "setup", "number": "5.1", "title": "Setup", "kind": "table", "description": "environments, metrics, training budget, seeds, baselines", "data": {"rows": [{"Environment/Task": {"value": "Walker Walk", "std": null, "seeds": null, "unit": "", "provenance": "derived", "note": "planned task"}, "Primary metric": {"value": "Return (\u2191)", "std": null, "seeds": null, "unit": "", "provenance": "derived", "note": "continuous-control metric"}, "Training budget": {"value": "500k steps", "std": null, "seeds": null, "unit": "", "provenance": "derived", "note": "planned budget"}, "Seeds": {"value": 5, "std": null, "seeds": null, "unit": "", "provenance": "derived", "note": "planned seed count"}, "Baselines": {"value": "TD-MPC2, DreamerV3, PlaNet", "std": null, "seeds": null, "unit": "", "provenance": "derived", "note": "planned baselines"}}, {"Environment/Task": {"value": "Cheetah Run", "std": null, "seeds": null, "unit": "", "provenance": "derived", "note": "planned task"}, "Primary metric": {"value": "Return (\u2191)", "std": null, "seeds": null, "unit": "", "provenance": "derived", "note": "continuous-control metric"}, "Training budget": {"value": "500k steps", "std": null, "seeds": null, "unit": "", "provenance": "derived", "note": "planned budget"}, "Seeds": {"value": 5, "std": null, "seeds": null, "unit": "", "provenance": "derived", "note": "planned seed count"}, "Baselines": {"value": "TD-MPC2, DreamerV3, PlaNet", "std": null, "seeds": null, "unit": "", "provenance": "derived", "note": "planned baselines"}}, {"Environment/Task": {"value": "Cartpole Swingup", "std": null, "seeds": null, "unit": "", "provenance": "derived", "note": "planned task"}, "Primary metric": {"value": "Return (\u2191)", "std": null, "seeds": null, "unit": "", "provenance": "derived", "note": "continuous-control metric"}, "Training budget": {"value": "500k steps", "std": null, "seeds": null, "unit": "", "provenance": "derived", "note": "planned budget"}, "Seeds": {"value": 5, "std": null, "seeds": null, "unit": "", "provenance": "derived", "note": "planned seed count"}, "Baselines": {"value": "TD-MPC2, DreamerV3, PlaNet", "std": null, "seeds": null, "unit": "", "provenance": "derived", "note": "planned baselines"}}, {"Environment/Task": {"value": "Reacher Easy", "std": null, "seeds": null, "unit": "", "provenance": "derived", "note": "planned task"}, "Primary metric": {"value": "Return (\u2191)", "std": null, "seeds": null, "unit": "", "provenance": "derived", "note": "continuous-control metric"}, "Training budget": {"value": "500k steps", "std": null, "seeds": null, "unit": "", "provenance": "derived", "note": "planned budget"}, "Seeds": {"value": 5, "std": null, "seeds": null, "unit": "", "provenance": "derived", "note": "planned seed count"}, "Baselines": {"value": "TD-MPC2, DreamerV3, PlaNet", "std": null, "seeds": null, "unit": "", "provenance": "derived", "note": "planned baselines"}}]}}, {"id": "main_results", "number": "5.2", "title": "Main Results", "kind": "table", "description": "methods \u00d7 tasks final-score table", "data": {"rows": [{"Method": {"value": "TRACE", "std": null, "seeds": null, "unit": "", "provenance": "derived", "note": "method label"}, "Walker Walk Return (\u2191)": {"value": 840, "std": 14, "seeds": 1, "unit": "return", "provenance": "experimented", "note": "single-seed preliminary run"}, "Cheetah Run Return (\u2191)": {"value": 903, "std": 16, "seeds": 5, "unit": "return", "provenance": "artificial", "note": "fabricated placeholder for layout"}, "Cartpole Swingup Return (\u2191)": {"value": 791, "std": 18, "seeds": 5, "unit": "return", "provenance": "artificial", "note": "fabricated placeholder for layout"}, "Reacher Easy Return (\u2191)": {"value": 954, "std": 20, "seeds": 5, "unit": "return", "provenance": "artificial", "note": "fabricated placeholder for layout"}}, {"Method": {"value": "TD-MPC2", "std": null, "seeds": null, "unit": "", "provenance": "derived", "note": "method label"}, "Walker Walk Return (\u2191)": {"value": 828, "std": 14, "seeds": 5, "unit": "return", "provenance": "public", "note": "public benchmark reference"}, "Cheetah Run Return (\u2191)": {"value": 888, "std": 16, "seeds": 5, "unit": "return", "provenance": "public", "note": "public benchmark reference"}, "Cartpole Swingup Return (\u2191)": {"value": 773, "std": 18, "seeds": 5, "unit": "return", "provenance": "artificial", "note": "fabricated placeholder for layout"}, "Reacher Easy Return (\u2191)": {"value": 933, "std": 20, "seeds": 5, "unit": "return", "provenance": "artificial", "note": "fabricated placeholder for layout"}}, {"Method": {"value": "DreamerV3", "std": null, "seeds": null, "unit": "", "provenance": "derived", "note": "method label"}, "Walker Walk Return (\u2191)": {"value": 820, "std": 14, "seeds": 5, "unit": "return", "provenance": "public", "note": "public benchmark reference"}, "Cheetah Run Return (\u2191)": {"value": 880, "std": 16, "seeds": 5, "unit": "return", "provenance": "public", "note": "public benchmark reference"}, "Cartpole Swingup Return (\u2191)": {"value": 765, "std": 18, "seeds": 5, "unit": "return", "provenance": "artificial", "note": "fabricated placeholder for layout"}, "Reacher Easy Return (\u2191)": {"value": 925, "std": 20, "seeds": 5, "unit": "return", "provenance": "artificial", "note": "fabricated placeholder for layout"}}, {"Method": {"value": "PlaNet", "std": null, "seeds": null, "unit": "", "provenance": "derived", "note": "method label"}, "Walker Walk Return (\u2191)": {"value": 778, "std": 14, "seeds": 5, "unit": "return", "provenance": "artificial", "note": "fabricated placeholder for layout"}, "Cheetah Run Return (\u2191)": {"value": 838, "std": 16, "seeds": 5, "unit": "return", "provenance": "artificial", "note": "fabricated placeholder for layout"}, "Cartpole Swingup Return (\u2191)": {"value": 723, "std": 18, "seeds": 5, "unit": "return", "provenance": "artificial", "note": "fabricated placeholder for layout"}, "Reacher Easy Return (\u2191)": {"value": 883, "std": 20, "seeds": 5, "unit": "return", "provenance": "artificial", "note": "fabricated placeholder for layout"}}]}}, {"id": "learning_efficiency", "number": "5.3", "title": "Learning and Sample Efficiency", "kind": "panel_group", "panel_type": "line", "description": "one learning-curve panel per task/environment", "layout": {"columns": 2, "panelWidth": 520, "panelHeight": 320, "fontSize": 12, "markerSize": 3, "legendPosition": "right", "showEnvelope": true}, "panels": [{"id": "learning_walker_walk", "title": "Walker Walk", "xLabel": "Environment steps", "yLabel": "Evaluation return", "series": [{"name": "TRACE", "provenance": "experimented", "points": [{"x": 0, "y": 0, "std": 10, "provenance": "experimented"}, {"x": 100000, "y": 429.84, "std": 16, "provenance": "experimented"}, {"x": 200000, "y": 639.72, "std": 22, "provenance": "experimented"}, {"x": 300000, "y": 742.21, "std": 28, "provenance": "experimented"}, {"x": 400000, "y": 792.25, "std": 34, "provenance": "experimented"}, {"x": 500000, "y": 816.68, "std": 40, "provenance": "experimented"}]}, {"name": "TD-MPC2", "provenance": "public", "points": [{"x": 0, "y": 0, "std": 10, "provenance": "public"}, {"x": 100000, "y": 380.1, "std": 16, "provenance": "public"}, {"x": 200000, "y": 585.71, "std": 22, "provenance": "public"}, {"x": 300000, "y": 696.93, "std": 28, "provenance": "public"}, {"x": 400000, "y": 757.1, "std": 34, "provenance": "public"}, {"x": 500000, "y": 789.65, "std": 40, "provenance": "public"}]}, {"name": "DreamerV3", "provenance": "public", "points": [{"x": 0, "y": 0, "std": 10, "provenance": "public"}, {"x": 100000, "y": 352.08, "std": 16, "provenance": "public"}, {"x": 200000, "y": 552.99, "std": 22, "provenance": "public"}, {"x": 300000, "y": 667.64, "std": 28, "provenance": "public"}, {"x": 400000, "y": 733.06, "std": 34, "provenance": "public"}, {"x": 500000, "y": 770.39, "std": 40, "provenance": "public"}]}, {"name": "PlaNet", "provenance": "artificial", "points": [{"x": 0, "y": 0, "std": 10, "provenance": "artificial"}, {"x": 100000, "y": 334.05, "std": 16, "provenance": "artificial"}, {"x": 200000, "y": 524.67, "std": 22, "provenance": "artificial"}, {"x": 300000, "y": 633.44, "std": 28, "provenance": "artificial"}, {"x": 400000, "y": 695.51, "std": 34, "provenance": "artificial"}, {"x": 500000, "y": 730.93, "std": 40, "provenance": "artificial"}]}]}, {"id": "learning_cheetah_run", "title": "Cheetah Run", "xLabel": "Environment steps", "yLabel": "Evaluation return", "series": [{"name": "TRACE", "provenance": "artificial", "points": [{"x": 0, "y": 0, "std": 10, "provenance": "artificial"}, {"x": 100000, "y": 462.07, "std": 16, "provenance": "artificial"}, {"x": 200000, "y": 687.7, "std": 22, "provenance": "artificial"}, {"x": 300000, "y": 797.87, "std": 28, "provenance": "artificial"}, {"x": 400000, "y": 851.67, "std": 34, "provenance": "artificial"}, {"x": 500000, "y": 877.93, "std": 40, "provenance": "artificial"}]}, {"name": "TD-MPC2", "provenance": "public", "points": [{"x": 0, "y": 0, "std": 10, "provenance": "public"}, {"x": 100000, "y": 407.64, "std": 16, "provenance": "public"}, {"x": 200000, "y": 628.15, "std": 22, "provenance": "public"}, {"x": 300000, "y": 747.44, "std": 28, "provenance": "public"}, {"x": 400000, "y": 811.96, "std": 34, "provenance": "public"}, {"x": 500000, "y": 846.87, "std": 40, "provenance": "public"}]}, {"name": "DreamerV3", "provenance": "public", "points": [{"x": 0, "y": 0, "std": 10, "provenance": "public"}, {"x": 100000, "y": 377.84, "std": 16, "provenance": "public"}, {"x": 200000, "y": 593.45, "std": 22, "provenance": "public"}, {"x": 300000, "y": 716.49, "std": 28, "provenance": "public"}, {"x": 400000, "y": 786.69, "std": 34, "provenance": "public"}, {"x": 500000, "y": 826.76, "std": 40, "provenance": "public"}]}, {"name": "PlaNet", "provenance": "artificial", "points": [{"x": 0, "y": 0, "std": 10, "provenance": "artificial"}, {"x": 100000, "y": 359.81, "std": 16, "provenance": "artificial"}, {"x": 200000, "y": 565.13, "std": 22, "provenance": "artificial"}, {"x": 300000, "y": 682.29, "std": 28, "provenance": "artificial"}, {"x": 400000, "y": 749.15, "std": 34, "provenance": "artificial"}, {"x": 500000, "y": 787.3, "std": 40, "provenance": "artificial"}]}]}, {"id": "learning_cartpole_swingup", "title": "Cartpole Swingup", "xLabel": "Environment steps", "yLabel": "Evaluation return", "series": [{"name": "TRACE", "provenance": "artificial", "points": [{"x": 0, "y": 0, "std": 10, "provenance": "artificial"}, {"x": 100000, "y": 404.76, "std": 16, "provenance": "artificial"}, {"x": 200000, "y": 602.4, "std": 22, "provenance": "artificial"}, {"x": 300000, "y": 698.91, "std": 28, "provenance": "artificial"}, {"x": 400000, "y": 746.03, "std": 34, "provenance": "artificial"}, {"x": 500000, "y": 769.04, "std": 40, "provenance": "artificial"}]}, {"name": "TD-MPC2", "provenance": "artificial", "points": [{"x": 0, "y": 0, "std": 10, "provenance": "artificial"}, {"x": 100000, "y": 354.85, "std": 16, "provenance": "artificial"}, {"x": 200000, "y": 546.8, "std": 22, "provenance": "artificial"}, {"x": 300000, "y": 650.64, "std": 28, "provenance": "artificial"}, {"x": 400000, "y": 706.81, "std": 34, "provenance": "artificial"}, {"x": 500000, "y": 737.2, "std": 40, "provenance": "artificial"}]}, {"name": "DreamerV3", "provenance": "artificial", "points": [{"x": 0, "y": 0, "std": 10, "provenance": "artificial"}, {"x": 100000, "y": 328.47, "std": 16, "provenance": "artificial"}, {"x": 200000, "y": 515.9, "std": 22, "provenance": "artificial"}, {"x": 300000, "y": 622.86, "std": 28, "provenance": "artificial"}, {"x": 400000, "y": 683.89, "std": 34, "provenance": "artificial"}, {"x": 500000, "y": 718.71, "std": 40, "provenance": "artificial"}]}, {"name": "PlaNet", "provenance": "artificial", "points": [{"x": 0, "y": 0, "std": 10, "provenance": "artificial"}, {"x": 100000, "y": 310.43, "std": 16, "provenance": "artificial"}, {"x": 200000, "y": 487.58, "std": 22, "provenance": "artificial"}, {"x": 300000, "y": 588.66, "std": 28, "provenance": "artificial"}, {"x": 400000, "y": 646.34, "std": 34, "provenance": "artificial"}, {"x": 500000, "y": 679.26, "std": 40, "provenance": "artificial"}]}]}, {"id": "learning_reacher_easy", "title": "Reacher Easy", "xLabel": "Environment steps", "yLabel": "Evaluation return", "series": [{"name": "TRACE", "provenance": "artificial", "points": [{"x": 0, "y": 0, "std": 10, "provenance": "artificial"}, {"x": 100000, "y": 488.17, "std": 16, "provenance": "artificial"}, {"x": 200000, "y": 726.54, "std": 22, "provenance": "artificial"}, {"x": 300000, "y": 842.93, "std": 28, "provenance": "artificial"}, {"x": 400000, "y": 899.77, "std": 34, "provenance": "artificial"}, {"x": 500000, "y": 927.52, "std": 40, "provenance": "artificial"}]}, {"name": "TD-MPC2", "provenance": "artificial", "points": [{"x": 0, "y": 0, "std": 10, "provenance": "artificial"}, {"x": 100000, "y": 428.3, "std": 16, "provenance": "artificial"}, {"x": 200000, "y": 659.99, "std": 22, "provenance": "artificial"}, {"x": 300000, "y": 785.31, "std": 28, "provenance": "artificial"}, {"x": 400000, "y": 853.11, "std": 34, "provenance": "artificial"}, {"x": 500000, "y": 889.78, "std": 40, "provenance": "artificial"}]}, {"name": "DreamerV3", "provenance": "artificial", "points": [{"x": 0, "y": 0, "std": 10, "provenance": "artificial"}, {"x": 100000, "y": 397.16, "std": 16, "provenance": "artificial"}, {"x": 200000, "y": 623.8, "std": 22, "provenance": "artificial"}, {"x": 300000, "y": 753.13, "std": 28, "provenance": "artificial"}, {"x": 400000, "y": 826.92, "std": 34, "provenance": "artificial"}, {"x": 500000, "y": 869.03, "std": 40, "provenance": "artificial"}]}, {"name": "PlaNet", "provenance": "artificial", "points": [{"x": 0, "y": 0, "std": 10, "provenance": "artificial"}, {"x": 100000, "y": 379.13, "std": 16, "provenance": "artificial"}, {"x": 200000, "y": 595.48, "std": 22, "provenance": "artificial"}, {"x": 300000, "y": 718.93, "std": 28, "provenance": "artificial"}, {"x": 400000, "y": 789.38, "std": 34, "provenance": "artificial"}, {"x": 500000, "y": 829.58, "std": 40, "provenance": "artificial"}]}]}], "config": {"layout": {"columns": 2, "panelWidth": 520, "panelHeight": 320, "gap": 18, "sharedLegend": true, "legendPosition": "right", "showPanelLetters": true}, "style": {"fontSize": 12, "titleFontSize": 14, "lineWidth": 2, "markerSize": 3, "showGrid": true, "showEnvelope": true, "showValueLabels": false}, "axes": {"xLabel": "Environment steps", "yLabel": "Evaluation return", "xScale": "linear", "yScale": "linear", "shareX": true, "shareY": false}, "series": {"methods": ["TRACE", "TD-MPC2", "DreamerV3", "PlaNet"], "methodOrder": ["TRACE", "TD-MPC2", "DreamerV3", "PlaNet"], "highlightMethods": []}, "provenanceDisplay": {"showBadges": true, "showModifiedWarning": true, "showArtificialWatermark": true}, "export": {"formats": ["json", "svg"], "exportEachPanel": true, "exportWholeGroup": true}}, "figure_type": "multi_panel_curve"}, {"id": "ablation", "number": "5.4", "title": "Ablation Study", "kind": "table", "description": "full method and variants", "data": {"rows": [{"Variant": {"value": "TRACE", "std": null, "seeds": null, "unit": "", "provenance": "experimented", "note": "variant label"}, "Walker Walk Return (\u2191)": {"value": 840, "std": 10, "seeds": 5, "unit": "return", "provenance": "experimented", "note": "full method reference"}, "Cheetah Run Return (\u2191)": {"value": 903, "std": 10, "seeds": 5, "unit": "return", "provenance": "artificial", "note": "full method reference"}, "Cartpole Swingup Return (\u2191)": {"value": 791, "std": 10, "seeds": 5, "unit": "return", "provenance": "artificial", "note": "full method reference"}, "Reacher Easy Return (\u2191)": {"value": 954, "std": 10, "seeds": 5, "unit": "return", "provenance": "artificial", "note": "full method reference"}}, {"Variant": {"value": "w/o adaptive coding entropy", "std": null, "seeds": null, "unit": "", "provenance": "derived", "note": "variant label"}, "Walker Walk Return (\u2191)": {"value": 828, "std": 11, "seeds": 5, "unit": "return", "provenance": "artificial", "note": "ablation placeholder"}, "Cheetah Run Return (\u2191)": {"value": 887, "std": 11, "seeds": 5, "unit": "return", "provenance": "artificial", "note": "ablation placeholder"}, "Cartpole Swingup Return (\u2191)": {"value": 771, "std": 11, "seeds": 5, "unit": "return", "provenance": "artificial", "note": "ablation placeholder"}, "Reacher Easy Return (\u2191)": {"value": 930, "std": 11, "seeds": 5, "unit": "return", "provenance": "artificial", "note": "ablation placeholder"}}, {"Variant": {"value": "w/o transition-graph regularization", "std": null, "seeds": null, "unit": "", "provenance": "derived", "note": "variant label"}, "Walker Walk Return (\u2191)": {"value": 816, "std": 12, "seeds": 5, "unit": "return", "provenance": "artificial", "note": "ablation placeholder"}, "Cheetah Run Return (\u2191)": {"value": 875, "std": 12, "seeds": 5, "unit": "return", "provenance": "artificial", "note": "ablation placeholder"}, "Cartpole Swingup Return (\u2191)": {"value": 759, "std": 12, "seeds": 5, "unit": "return", "provenance": "artificial", "note": "ablation placeholder"}, "Reacher Easy Return (\u2191)": {"value": 918, "std": 12, "seeds": 5, "unit": "return", "provenance": "artificial", "note": "ablation placeholder"}}, {"Variant": {"value": "w/o soft coding tree", "std": null, "seeds": null, "unit": "", "provenance": "derived", "note": "variant label"}, "Walker Walk Return (\u2191)": {"value": 804, "std": 13, "seeds": 5, "unit": "return", "provenance": "artificial", "note": "ablation placeholder"}, "Cheetah Run Return (\u2191)": {"value": 863, "std": 13, "seeds": 5, "unit": "return", "provenance": "artificial", "note": "ablation placeholder"}, "Cartpole Swingup Return (\u2191)": {"value": 747, "std": 13, "seeds": 5, "unit": "return", "provenance": "artificial", "note": "ablation placeholder"}, "Reacher Easy Return (\u2191)": {"value": 906, "std": 13, "seeds": 5, "unit": "return", "provenance": "artificial", "note": "ablation placeholder"}}, {"Variant": {"value": "w/o latent graph feedback", "std": null, "seeds": null, "unit": "", "provenance": "derived", "note": "variant label"}, "Walker Walk Return (\u2191)": {"value": 792, "std": 14, "seeds": 5, "unit": "return", "provenance": "artificial", "note": "ablation placeholder"}, "Cheetah Run Return (\u2191)": {"value": 851, "std": 14, "seeds": 5, "unit": "return", "provenance": "artificial", "note": "ablation placeholder"}, "Cartpole Swingup Return (\u2191)": {"value": 735, "std": 14, "seeds": 5, "unit": "return", "provenance": "artificial", "note": "ablation placeholder"}, "Reacher Easy Return (\u2191)": {"value": 894, "std": 14, "seeds": 5, "unit": "return", "provenance": "artificial", "note": "ablation placeholder"}}]}}, {"id": "generalization", "number": "5.5", "title": "Generalization", "kind": "panel_group", "panel_type": "line", "description": "one panel per task showing unseen-condition difficulty curves", "layout": {"columns": 2, "panelWidth": 520, "panelHeight": 320, "fontSize": 12, "markerSize": 3, "legendPosition": "right", "showEnvelope": true}, "panels": [{"id": "gen_walker_walk", "title": "Walker Walk unseen difficulty", "xLabel": "Difficulty level", "yLabel": "Return", "series": [{"name": "TRACE", "provenance": "artificial", "points": [{"x": 0, "label": "ID", "y": 840, "std": 12, "provenance": "artificial"}, {"x": 1, "label": "mild", "y": 810, "std": 15, "provenance": "artificial"}, {"x": 2, "label": "medium", "y": 780, "std": 18, "provenance": "artificial"}, {"x": 3, "label": "hard", "y": 750, "std": 21, "provenance": "artificial"}, {"x": 4, "label": "extreme", "y": 720, "std": 24, "provenance": "artificial"}]}, {"name": "TD-MPC2", "provenance": "artificial", "points": [{"x": 0, "label": "ID", "y": 828, "std": 12, "provenance": "artificial"}, {"x": 1, "label": "mild", "y": 786, "std": 15, "provenance": "artificial"}, {"x": 2, "label": "medium", "y": 744, "std": 18, "provenance": "artificial"}, {"x": 3, "label": "hard", "y": 702, "std": 21, "provenance": "artificial"}, {"x": 4, "label": "extreme", "y": 660, "std": 24, "provenance": "artificial"}]}, {"name": "DreamerV3", "provenance": "artificial", "points": [{"x": 0, "label": "ID", "y": 820, "std": 12, "provenance": "artificial"}, {"x": 1, "label": "mild", "y": 770, "std": 15, "provenance": "artificial"}, {"x": 2, "label": "medium", "y": 720, "std": 18, "provenance": "artificial"}, {"x": 3, "label": "hard", "y": 670, "std": 21, "provenance": "artificial"}, {"x": 4, "label": "extreme", "y": 620, "std": 24, "provenance": "artificial"}]}]}, {"id": "gen_cheetah_run", "title": "Cheetah Run unseen difficulty", "xLabel": "Difficulty level", "yLabel": "Return", "series": [{"name": "TRACE", "provenance": "artificial", "points": [{"x": 0, "label": "ID", "y": 900, "std": 12, "provenance": "artificial"}, {"x": 1, "label": "mild", "y": 870, "std": 15, "provenance": "artificial"}, {"x": 2, "label": "medium", "y": 840, "std": 18, "provenance": "artificial"}, {"x": 3, "label": "hard", "y": 810, "std": 21, "provenance": "artificial"}, {"x": 4, "label": "extreme", "y": 780, "std": 24, "provenance": "artificial"}]}, {"name": "TD-MPC2", "provenance": "artificial", "points": [{"x": 0, "label": "ID", "y": 888, "std": 12, "provenance": "artificial"}, {"x": 1, "label": "mild", "y": 846, "std": 15, "provenance": "artificial"}, {"x": 2, "label": "medium", "y": 804, "std": 18, "provenance": "artificial"}, {"x": 3, "label": "hard", "y": 762, "std": 21, "provenance": "artificial"}, {"x": 4, "label": "extreme", "y": 720, "std": 24, "provenance": "artificial"}]}, {"name": "DreamerV3", "provenance": "artificial", "points": [{"x": 0, "label": "ID", "y": 880, "std": 12, "provenance": "artificial"}, {"x": 1, "label": "mild", "y": 830, "std": 15, "provenance": "artificial"}, {"x": 2, "label": "medium", "y": 780, "std": 18, "provenance": "artificial"}, {"x": 3, "label": "hard", "y": 730, "std": 21, "provenance": "artificial"}, {"x": 4, "label": "extreme", "y": 680, "std": 24, "provenance": "artificial"}]}]}, {"id": "gen_cartpole_swingup", "title": "Cartpole Swingup unseen difficulty", "xLabel": "Difficulty level", "yLabel": "Return", "series": [{"name": "TRACE", "provenance": "artificial", "points": [{"x": 0, "label": "ID", "y": 785, "std": 12, "provenance": "artificial"}, {"x": 1, "label": "mild", "y": 755, "std": 15, "provenance": "artificial"}, {"x": 2, "label": "medium", "y": 725, "std": 18, "provenance": "artificial"}, {"x": 3, "label": "hard", "y": 695, "std": 21, "provenance": "artificial"}, {"x": 4, "label": "extreme", "y": 665, "std": 24, "provenance": "artificial"}]}, {"name": "TD-MPC2", "provenance": "artificial", "points": [{"x": 0, "label": "ID", "y": 773, "std": 12, "provenance": "artificial"}, {"x": 1, "label": "mild", "y": 731, "std": 15, "provenance": "artificial"}, {"x": 2, "label": "medium", "y": 689, "std": 18, "provenance": "artificial"}, {"x": 3, "label": "hard", "y": 647, "std": 21, "provenance": "artificial"}, {"x": 4, "label": "extreme", "y": 605, "std": 24, "provenance": "artificial"}]}, {"name": "DreamerV3", "provenance": "artificial", "points": [{"x": 0, "label": "ID", "y": 765, "std": 12, "provenance": "artificial"}, {"x": 1, "label": "mild", "y": 715, "std": 15, "provenance": "artificial"}, {"x": 2, "label": "medium", "y": 665, "std": 18, "provenance": "artificial"}, {"x": 3, "label": "hard", "y": 615, "std": 21, "provenance": "artificial"}, {"x": 4, "label": "extreme", "y": 565, "std": 24, "provenance": "artificial"}]}]}], "config": {"layout": {"columns": 2, "panelWidth": 520, "panelHeight": 320, "gap": 18, "sharedLegend": true, "legendPosition": "right", "showPanelLetters": true}, "style": {"fontSize": 12, "titleFontSize": 14, "lineWidth": 2, "markerSize": 3, "showGrid": true, "showEnvelope": true, "showValueLabels": false}, "axes": {"xLabel": "Difficulty level", "yLabel": "Return", "xScale": "linear", "yScale": "linear", "shareX": true, "shareY": false}, "series": {"methods": ["TRACE", "TD-MPC2", "DreamerV3"], "methodOrder": ["TRACE", "TD-MPC2", "DreamerV3"], "highlightMethods": []}, "provenanceDisplay": {"showBadges": true, "showModifiedWarning": true, "showArtificialWatermark": true}, "export": {"formats": ["json", "svg"], "exportEachPanel": true, "exportWholeGroup": true}}, "figure_type": "multi_panel_curve"}, {"id": "robustness", "number": "5.6", "title": "Robustness", "kind": "panel_group", "panel_type": "line", "description": "one panel per perturbation type or task", "layout": {"columns": 2, "panelWidth": 520, "panelHeight": 320, "fontSize": 12, "markerSize": 3, "legendPosition": "right", "showEnvelope": true}, "panels": [{"id": "rob_observation_noise", "title": "observation noise", "xLabel": "Perturbation strength", "yLabel": "Performance", "series": [{"name": "TRACE", "provenance": "artificial", "points": [{"x": 0, "y": 830.0, "std": 10, "provenance": "artificial"}, {"x": 0.1, "y": 807.0, "std": 12.5, "provenance": "artificial"}, {"x": 0.2, "y": 784.0, "std": 15.0, "provenance": "artificial"}, {"x": 0.3, "y": 761.0, "std": 17.5, "provenance": "artificial"}, {"x": 0.4, "y": 738.0, "std": 20.0, "provenance": "artificial"}, {"x": 0.5, "y": 715.0, "std": 22.5, "provenance": "artificial"}]}, {"name": "TD-MPC2", "provenance": "artificial", "points": [{"x": 0, "y": 810.0, "std": 10, "provenance": "artificial"}, {"x": 0.1, "y": 779.0, "std": 12.5, "provenance": "artificial"}, {"x": 0.2, "y": 748.0, "std": 15.0, "provenance": "artificial"}, {"x": 0.3, "y": 717.0, "std": 17.5, "provenance": "artificial"}, {"x": 0.4, "y": 686.0, "std": 20.0, "provenance": "artificial"}, {"x": 0.5, "y": 655.0, "std": 22.5, "provenance": "artificial"}]}, {"name": "DreamerV3", "provenance": "artificial", "points": [{"x": 0, "y": 795.0, "std": 10, "provenance": "artificial"}, {"x": 0.1, "y": 759.0, "std": 12.5, "provenance": "artificial"}, {"x": 0.2, "y": 723.0, "std": 15.0, "provenance": "artificial"}, {"x": 0.3, "y": 687.0, "std": 17.5, "provenance": "artificial"}, {"x": 0.4, "y": 651.0, "std": 20.0, "provenance": "artificial"}, {"x": 0.5, "y": 615.0, "std": 22.5, "provenance": "artificial"}]}]}, {"id": "rob_action_noise", "title": "action noise", "xLabel": "Perturbation strength", "yLabel": "Performance", "series": [{"name": "TRACE", "provenance": "artificial", "points": [{"x": 0, "y": 830.0, "std": 10, "provenance": "artificial"}, {"x": 0.1, "y": 805.16, "std": 12.5, "provenance": "artificial"}, {"x": 0.2, "y": 780.32, "std": 15.0, "provenance": "artificial"}, {"x": 0.3, "y": 755.48, "std": 17.5, "provenance": "artificial"}, {"x": 0.4, "y": 730.64, "std": 20.0, "provenance": "artificial"}, {"x": 0.5, "y": 705.8, "std": 22.5, "provenance": "artificial"}]}, {"name": "TD-MPC2", "provenance": "artificial", "points": [{"x": 0, "y": 810.0, "std": 10, "provenance": "artificial"}, {"x": 0.1, "y": 776.52, "std": 12.5, "provenance": "artificial"}, {"x": 0.2, "y": 743.04, "std": 15.0, "provenance": "artificial"}, {"x": 0.3, "y": 709.56, "std": 17.5, "provenance": "artificial"}, {"x": 0.4, "y": 676.08, "std": 20.0, "provenance": "artificial"}, {"x": 0.5, "y": 642.6, "std": 22.5, "provenance": "artificial"}]}, {"name": "DreamerV3", "provenance": "artificial", "points": [{"x": 0, "y": 795.0, "std": 10, "provenance": "artificial"}, {"x": 0.1, "y": 756.12, "std": 12.5, "provenance": "artificial"}, {"x": 0.2, "y": 717.24, "std": 15.0, "provenance": "artificial"}, {"x": 0.3, "y": 678.36, "std": 17.5, "provenance": "artificial"}, {"x": 0.4, "y": 639.48, "std": 20.0, "provenance": "artificial"}, {"x": 0.5, "y": 600.6, "std": 22.5, "provenance": "artificial"}]}]}, {"id": "rob_dynamics_shift", "title": "dynamics shift", "xLabel": "Perturbation strength", "yLabel": "Performance", "series": [{"name": "TRACE", "provenance": "artificial", "points": [{"x": 0, "y": 830.0, "std": 10, "provenance": "artificial"}, {"x": 0.1, "y": 803.32, "std": 12.5, "provenance": "artificial"}, {"x": 0.2, "y": 776.64, "std": 15.0, "provenance": "artificial"}, {"x": 0.3, "y": 749.96, "std": 17.5, "provenance": "artificial"}, {"x": 0.4, "y": 723.28, "std": 20.0, "provenance": "artificial"}, {"x": 0.5, "y": 696.6, "std": 22.5, "provenance": "artificial"}]}, {"name": "TD-MPC2", "provenance": "artificial", "points": [{"x": 0, "y": 810.0, "std": 10, "provenance": "artificial"}, {"x": 0.1, "y": 774.04, "std": 12.5, "provenance": "artificial"}, {"x": 0.2, "y": 738.08, "std": 15.0, "provenance": "artificial"}, {"x": 0.3, "y": 702.12, "std": 17.5, "provenance": "artificial"}, {"x": 0.4, "y": 666.16, "std": 20.0, "provenance": "artificial"}, {"x": 0.5, "y": 630.2, "std": 22.5, "provenance": "artificial"}]}, {"name": "DreamerV3", "provenance": "artificial", "points": [{"x": 0, "y": 795.0, "std": 10, "provenance": "artificial"}, {"x": 0.1, "y": 753.24, "std": 12.5, "provenance": "artificial"}, {"x": 0.2, "y": 711.48, "std": 15.0, "provenance": "artificial"}, {"x": 0.3, "y": 669.72, "std": 17.5, "provenance": "artificial"}, {"x": 0.4, "y": 627.96, "std": 20.0, "provenance": "artificial"}, {"x": 0.5, "y": 586.2, "std": 22.5, "provenance": "artificial"}]}]}], "config": {"layout": {"columns": 2, "panelWidth": 520, "panelHeight": 320, "gap": 18, "sharedLegend": true, "legendPosition": "right", "showPanelLetters": true}, "style": {"fontSize": 12, "titleFontSize": 14, "lineWidth": 2, "markerSize": 3, "showGrid": true, "showEnvelope": true, "showValueLabels": false}, "axes": {"xLabel": "Perturbation strength", "yLabel": "Performance", "xScale": "linear", "yScale": "linear", "shareX": true, "shareY": false}, "series": {"methods": ["TRACE", "TD-MPC2", "DreamerV3"], "methodOrder": ["TRACE", "TD-MPC2", "DreamerV3"], "highlightMethods": []}, "provenanceDisplay": {"showBadges": true, "showModifiedWarning": true, "showArtificialWatermark": true}, "export": {"formats": ["json", "svg"], "exportEachPanel": true, "exportWholeGroup": true}}, "figure_type": "multi_panel_curve"}, {"id": "scalability_curve", "number": "5.7a", "title": "Scalability: performance curves", "kind": "panel_group", "panel_type": "line", "description": "one panel per problem-size axis", "layout": {"columns": 2, "panelWidth": 520, "panelHeight": 320, "fontSize": 12, "markerSize": 3, "legendPosition": "right", "showEnvelope": true}, "panels": [{"id": "scale_state_dimension", "title": "state dimension", "xLabel": "Problem size", "yLabel": "Performance", "series": [{"name": "TRACE", "provenance": "artificial", "points": [{"x": 1, "y": 850.0, "std": 12, "provenance": "artificial"}, {"x": 2, "y": 832.0, "std": 14, "provenance": "artificial"}, {"x": 4, "y": 814.0, "std": 18, "provenance": "artificial"}, {"x": 8, "y": 796.0, "std": 26, "provenance": "artificial"}, {"x": 16, "y": 778.0, "std": 42, "provenance": "artificial"}]}, {"name": "TD-MPC2", "provenance": "artificial", "points": [{"x": 1, "y": 825.0, "std": 12, "provenance": "artificial"}, {"x": 2, "y": 797.0, "std": 14, "provenance": "artificial"}, {"x": 4, "y": 769.0, "std": 18, "provenance": "artificial"}, {"x": 8, "y": 741.0, "std": 26, "provenance": "artificial"}, {"x": 16, "y": 713.0, "std": 42, "provenance": "artificial"}]}, {"name": "DreamerV3", "provenance": "artificial", "points": [{"x": 1, "y": 810.0, "std": 12, "provenance": "artificial"}, {"x": 2, "y": 775.0, "std": 14, "provenance": "artificial"}, {"x": 4, "y": 740.0, "std": 18, "provenance": "artificial"}, {"x": 8, "y": 705.0, "std": 26, "provenance": "artificial"}, {"x": 16, "y": 670.0, "std": 42, "provenance": "artificial"}]}]}, {"id": "scale_action_dimension", "title": "action dimension", "xLabel": "Problem size", "yLabel": "Performance", "series": [{"name": "TRACE", "provenance": "artificial", "points": [{"x": 1, "y": 850.0, "std": 12, "provenance": "artificial"}, {"x": 2, "y": 832.0, "std": 14, "provenance": "artificial"}, {"x": 4, "y": 814.0, "std": 18, "provenance": "artificial"}, {"x": 8, "y": 796.0, "std": 26, "provenance": "artificial"}, {"x": 16, "y": 778.0, "std": 42, "provenance": "artificial"}]}, {"name": "TD-MPC2", "provenance": "artificial", "points": [{"x": 1, "y": 825.0, "std": 12, "provenance": "artificial"}, {"x": 2, "y": 797.0, "std": 14, "provenance": "artificial"}, {"x": 4, "y": 769.0, "std": 18, "provenance": "artificial"}, {"x": 8, "y": 741.0, "std": 26, "provenance": "artificial"}, {"x": 16, "y": 713.0, "std": 42, "provenance": "artificial"}]}, {"name": "DreamerV3", "provenance": "artificial", "points": [{"x": 1, "y": 810.0, "std": 12, "provenance": "artificial"}, {"x": 2, "y": 775.0, "std": 14, "provenance": "artificial"}, {"x": 4, "y": 740.0, "std": 18, "provenance": "artificial"}, {"x": 8, "y": 705.0, "std": 26, "provenance": "artificial"}, {"x": 16, "y": 670.0, "std": 42, "provenance": "artificial"}]}]}, {"id": "scale_planning_horizon", "title": "planning horizon", "xLabel": "Problem size", "yLabel": "Performance", "series": [{"name": "TRACE", "provenance": "artificial", "points": [{"x": 1, "y": 850.0, "std": 12, "provenance": "artificial"}, {"x": 2, "y": 827.5, "std": 14, "provenance": "artificial"}, {"x": 4, "y": 805.0, "std": 18, "provenance": "artificial"}, {"x": 8, "y": 782.5, "std": 26, "provenance": "artificial"}, {"x": 16, "y": 760.0, "std": 42, "provenance": "artificial"}]}, {"name": "TD-MPC2", "provenance": "artificial", "points": [{"x": 1, "y": 825.0, "std": 12, "provenance": "artificial"}, {"x": 2, "y": 790.0, "std": 14, "provenance": "artificial"}, {"x": 4, "y": 755.0, "std": 18, "provenance": "artificial"}, {"x": 8, "y": 720.0, "std": 26, "provenance": "artificial"}, {"x": 16, "y": 685.0, "std": 42, "provenance": "artificial"}]}, {"name": "DreamerV3", "provenance": "artificial", "points": [{"x": 1, "y": 810.0, "std": 12, "provenance": "artificial"}, {"x": 2, "y": 766.25, "std": 14, "provenance": "artificial"}, {"x": 4, "y": 722.5, "std": 18, "provenance": "artificial"}, {"x": 8, "y": 678.75, "std": 26, "provenance": "artificial"}, {"x": 16, "y": 635.0, "std": 42, "provenance": "artificial"}]}]}], "config": {"layout": {"columns": 2, "panelWidth": 520, "panelHeight": 320, "gap": 18, "sharedLegend": true, "legendPosition": "right", "showPanelLetters": true}, "style": {"fontSize": 12, "titleFontSize": 14, "lineWidth": 2, "markerSize": 3, "showGrid": true, "showEnvelope": true, "showValueLabels": false}, "axes": {"xLabel": "Problem size", "yLabel": "Performance", "xScale": "linear", "yScale": "linear", "shareX": true, "shareY": false}, "series": {"methods": ["TRACE", "TD-MPC2", "DreamerV3"], "methodOrder": ["TRACE", "TD-MPC2", "DreamerV3"], "highlightMethods": []}, "provenanceDisplay": {"showBadges": true, "showModifiedWarning": true, "showArtificialWatermark": true}, "export": {"formats": ["json", "svg"], "exportEachPanel": true, "exportWholeGroup": true}}, "figure_type": "multi_panel_curve"}, {"id": "efficiency_table", "number": "5.7b", "title": "Scalability and Efficiency: cost table", "kind": "table", "description": "training time, inference time, memory, parameters", "data": {"rows": [{"Method": {"value": "TRACE", "std": null, "seeds": null, "unit": "", "provenance": "derived", "note": "method label"}, "Training time (h) \u2193": {"value": 7.8, "std": 0.4, "seeds": 5, "unit": "", "provenance": "artificial", "note": "placeholder efficiency metric"}, "Inference time (ms) \u2193": {"value": 3.2, "std": 0.2, "seeds": 5, "unit": "", "provenance": "artificial", "note": "placeholder efficiency metric"}, "Memory (GB) \u2193": {"value": 4.8, "std": 0.1, "seeds": 5, "unit": "", "provenance": "artificial", "note": "placeholder efficiency metric"}, "Parameters (M) \u2193": {"value": 18.5, "std": null, "seeds": null, "unit": "", "provenance": "artificial", "note": "placeholder model size"}}, {"Method": {"value": "TD-MPC2", "std": null, "seeds": null, "unit": "", "provenance": "derived", "note": "method label"}, "Training time (h) \u2193": {"value": 7.1, "std": 0.4, "seeds": 5, "unit": "", "provenance": "artificial", "note": "placeholder efficiency metric"}, "Inference time (ms) \u2193": {"value": 2.9, "std": 0.2, "seeds": 5, "unit": "", "provenance": "artificial", "note": "placeholder efficiency metric"}, "Memory (GB) \u2193": {"value": 4.2, "std": 0.1, "seeds": 5, "unit": "", "provenance": "artificial", "note": "placeholder efficiency metric"}, "Parameters (M) \u2193": {"value": 17.2, "std": null, "seeds": null, "unit": "", "provenance": "artificial", "note": "placeholder model size"}}, {"Method": {"value": "DreamerV3", "std": null, "seeds": null, "unit": "", "provenance": "derived", "note": "method label"}, "Training time (h) \u2193": {"value": 8.4, "std": 0.4, "seeds": 5, "unit": "", "provenance": "artificial", "note": "placeholder efficiency metric"}, "Inference time (ms) \u2193": {"value": 3.6, "std": 0.2, "seeds": 5, "unit": "", "provenance": "artificial", "note": "placeholder efficiency metric"}, "Memory (GB) \u2193": {"value": 5.1, "std": 0.1, "seeds": 5, "unit": "", "provenance": "artificial", "note": "placeholder efficiency metric"}, "Parameters (M) \u2193": {"value": 21.1, "std": null, "seeds": null, "unit": "", "provenance": "artificial", "note": "placeholder model size"}}, {"Method": {"value": "PlaNet", "std": null, "seeds": null, "unit": "", "provenance": "derived", "note": "method label"}, "Training time (h) \u2193": {"value": 5.6, "std": 0.4, "seeds": 5, "unit": "", "provenance": "artificial", "note": "placeholder efficiency metric"}, "Inference time (ms) \u2193": {"value": 2.4, "std": 0.2, "seeds": 5, "unit": "", "provenance": "artificial", "note": "placeholder efficiency metric"}, "Memory (GB) \u2193": {"value": 3.6, "std": 0.1, "seeds": 5, "unit": "", "provenance": "artificial", "note": "placeholder efficiency metric"}, "Parameters (M) \u2193": {"value": 15.4, "std": null, "seeds": null, "unit": "", "provenance": "artificial", "note": "placeholder model size"}}]}}, {"id": "qualitative", "number": "5.8", "title": "Qualitative Analysis", "kind": "panel_group", "panel_type": "heatmap", "description": "one qualitative diagnostic panel per task/example", "layout": {"columns": 3, "panelWidth": 360, "panelHeight": 300, "fontSize": 12, "markerSize": 3, "legendPosition": "right", "showEnvelope": false}, "panels": [{"id": "qual_walker_walk", "title": "Walker Walk transition modules", "type": "heatmap", "provenance": "artificial", "xLabels": ["m1", "m2", "m3", "m4"], "yLabels": ["m1", "m2", "m3", "m4"], "values": [[0.72, 0.1, 0.12, 0.08], [0.1, 0.72, 0.08, 0.1], [0.12, 0.08, 0.72, 0.12], [0.08, 0.1, 0.12, 0.72]], "note": "placeholder latent transition-flow heatmap"}, {"id": "qual_cheetah_run", "title": "Cheetah Run transition modules", "type": "heatmap", "provenance": "artificial", "xLabels": ["m1", "m2", "m3", "m4"], "yLabels": ["m1", "m2", "m3", "m4"], "values": [[0.72, 0.1, 0.12, 0.08], [0.1, 0.72, 0.08, 0.1], [0.12, 0.08, 0.72, 0.12], [0.08, 0.1, 0.12, 0.72]], "note": "placeholder latent transition-flow heatmap"}, {"id": "qual_cartpole_swingup", "title": "Cartpole Swingup transition modules", "type": "heatmap", "provenance": "artificial", "xLabels": ["m1", "m2", "m3", "m4"], "yLabels": ["m1", "m2", "m3", "m4"], "values": [[0.72, 0.1, 0.12, 0.08], [0.1, 0.72, 0.08, 0.1], [0.12, 0.08, 0.72, 0.12], [0.08, 0.1, 0.12, 0.72]], "note": "placeholder latent transition-flow heatmap"}], "config": {"layout": {"columns": 3, "panelWidth": 360, "panelHeight": 300, "gap": 18, "sharedLegend": true, "legendPosition": "right", "showPanelLetters": true}, "style": {"fontSize": 12, "titleFontSize": 14, "lineWidth": 2, "markerSize": 3, "showGrid": true, "showEnvelope": false, "showValueLabels": false}, "axes": {"xLabel": "x", "yLabel": "y", "xScale": "linear", "yScale": "linear", "shareX": true, "shareY": false}, "series": {"methods": [], "methodOrder": [], "highlightMethods": []}, "provenanceDisplay": {"showBadges": true, "showModifiedWarning": true, "showArtificialWatermark": true}, "export": {"formats": ["json", "svg"], "exportEachPanel": true, "exportWholeGroup": true}}, "figure_type": "multi_panel_curve"}, {"id": "failure_cases", "number": "5.9", "title": "Case Study / Failure Cases", "kind": "table", "description": "failure modes, frequency, explanation", "data": {"rows": [{"Failure mode": {"value": "latent module collapse", "std": null, "seeds": null, "unit": "", "provenance": "artificial", "note": "candidate failure case"}, "Frequency (%) \u2193": {"value": 12.0, "std": null, "seeds": null, "unit": "", "provenance": "artificial", "note": "placeholder"}, "Explanation": {"value": "regularization too strong", "std": null, "seeds": null, "unit": "", "provenance": "artificial", "note": "draft explanation"}, "Mitigation": {"value": "reduce lambda_TRACE or add warmup", "std": null, "seeds": null, "unit": "", "provenance": "artificial", "note": "draft mitigation"}}, {"Failure mode": {"value": "poor long-horizon rollout", "std": null, "seeds": null, "unit": "", "provenance": "artificial", "note": "candidate failure case"}, "Frequency (%) \u2193": {"value": 18.0, "std": null, "seeds": null, "unit": "", "provenance": "artificial", "note": "placeholder"}, "Explanation": {"value": "world-model compounding error", "std": null, "seeds": null, "unit": "", "provenance": "artificial", "note": "draft explanation"}, "Mitigation": {"value": "shorter imagination horizon or uncertainty penalty", "std": null, "seeds": null, "unit": "", "provenance": "artificial", "note": "draft mitigation"}}, {"Failure mode": {"value": "sparse reward sensitivity", "std": null, "seeds": null, "unit": "", "provenance": "artificial", "note": "candidate failure case"}, "Frequency (%) \u2193": {"value": 9.0, "std": null, "seeds": null, "unit": "", "provenance": "artificial", "note": "placeholder"}, "Explanation": {"value": "weak early transition signal", "std": null, "seeds": null, "unit": "", "provenance": "artificial", "note": "draft explanation"}, "Mitigation": {"value": "pretraining or reward-balanced replay", "std": null, "seeds": null, "unit": "", "provenance": "artificial", "note": "draft mitigation"}}]}}]}</script>
+<script>
+let state = JSON.parse(document.getElementById('initial-data').textContent);
+const colors = ["#2563eb","#dc2626","#16a34a","#7c3aed","#ea580c","#0891b2","#be123c","#4b5563"];
+const PROV_ORDER = ["experimented","public","estimated","artificial","modified","derived"];
+const DEFAULT_CONFIG = {
+  layout: { columns: 3, panelWidth: 360, panelHeight: 260, gap: 18, sharedLegend: true, legendPosition: "bottom", showPanelLetters: true },
+  style: { fontSize: 12, titleFontSize: 14, lineWidth: 2, markerSize: 3, showGrid: true, showEnvelope: true, showValueLabels: false },
+  axes: { xLabel: "x", yLabel: "y", xScale: "linear", yScale: "linear", shareX: true, shareY: false },
+  series: { methods: [], methodOrder: [], highlightMethods: [] },
+  provenanceDisplay: { showBadges: true, showModifiedWarning: true, showArtificialWatermark: true },
+  export: { formats: ["json", "svg"], exportEachPanel: true, exportWholeGroup: true }
+};
+
+function deepMerge(base, override) {
+  const out = JSON.parse(JSON.stringify(base || {}));
+  for (const [k, v] of Object.entries(override || {})) {
+    if (v && typeof v === 'object' && !Array.isArray(v) && out[k] && typeof out[k] === 'object' && !Array.isArray(out[k])) out[k] = deepMerge(out[k], v);
+    else out[k] = v;
+  }
+  return out;
+}
+function normalizeSectionConfig(sec) {
+  if (sec.kind !== 'panel_group') return sec;
+  sec.config = deepMerge(DEFAULT_CONFIG, sec.config || {});
+  if (sec.layout) {
+    const map = { columns:['layout','columns'], panelWidth:['layout','panelWidth'], panelHeight:['layout','panelHeight'], legendPosition:['layout','legendPosition'], fontSize:['style','fontSize'], markerSize:['style','markerSize'], showEnvelope:['style','showEnvelope'] };
+    for (const [oldKey, path] of Object.entries(map)) {
+      if (sec.layout[oldKey] !== undefined) sec.config[path[0]][path[1]] = sec.layout[oldKey];
+    }
+  }
+  const methods = [];
+  (sec.panels || []).forEach(p => (p.series || []).forEach(s => { if (s.name && !methods.includes(s.name)) methods.push(s.name); }));
+  if (!sec.config.series.methods.length) sec.config.series.methods = methods;
+  if (!sec.config.series.methodOrder.length) sec.config.series.methodOrder = methods;
+  const fp = (sec.panels || [])[0] || {};
+  if ((!sec.config.axes.xLabel || sec.config.axes.xLabel === 'x') && fp.xLabel) sec.config.axes.xLabel = fp.xLabel;
+  if ((!sec.config.axes.yLabel || sec.config.axes.yLabel === 'y') && fp.yLabel) sec.config.axes.yLabel = fp.yLabel;
+  return sec;
+}
+state.sections = state.sections.map(normalizeSectionConfig);
+
+function provBadge(p) {
+  const meta = (state.provenanceLegend || {})[p] || {label:String(p || '').toUpperCase(), color:'#eee', text:'#333'};
+  return `<span class="badge" style="background:${meta.color};color:${meta.text}">${meta.label}</span>`;
+}
+function setPage() {
+  document.getElementById('page-title').textContent = state.paper.title;
+  document.getElementById('legend').innerHTML = PROV_ORDER.map(p => provBadge(p)).join('');
+  document.getElementById('nav').innerHTML = state.sections.map(s => `<a href="#${s.id}">${s.number} ${s.title}</a>`).join('');
+}
+function fmt(v) {
+  if (typeof v === 'number') return v.toFixed(2);
+  const n = Number(v);
+  if (!Number.isNaN(n) && String(v).trim() !== '') return n.toFixed(2);
+  return String(v ?? '');
+}
+function getSection(id) { return state.sections.find(s => s.id === id); }
+function getPanel(sectionId, panelId) { return getSection(sectionId).panels.find(p => p.id === panelId); }
+function downloadText(filename, text, mime='text/plain') {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], {type:mime}));
+  a.download = filename;
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+}
+function downloadJSON(filename, obj) { downloadText(filename, JSON.stringify(obj, null, 2), 'application/json'); }
+function escapeJS(s) { return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
+function safeId(s) { return String(s).replace(/[^a-zA-Z0-9_-]/g,'_'); }
+function parseMaybeNumber(x) { const n = Number(String(x).trim()); return Number.isNaN(n) ? x : n; }
+function htmlEscape(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function escapeXML(s) { return String(s ?? '').replace(/[<>&'"]/g, ch => ({'<':'&lt;','>':'&gt;','&':'&amp;',"'":'&apos;','"':'&quot;'}[ch])); }
+
+function renderTable(section) {
+  const rows = section.data.rows;
+  const cols = Object.keys(rows[0] || {});
+  let html = `<div class="toolbar">
+    <button onclick="exportTableJSON('${section.id}')">Export JSON</button>
+    <button onclick="exportTableCSV('${section.id}')">Export CSV</button>
+    <button onclick="exportTableLatex('${section.id}')">Export LaTeX</button>
+  </div>`;
+  html += `<div style="overflow:auto"><table><thead><tr>${cols.map(c=>`<th>${c}</th>`).join('')}</tr></thead><tbody>`;
+  rows.forEach((row, ri) => {
+    html += '<tr>';
+    cols.forEach(col => {
+      const c = row[col];
+      const raw = c.value ?? '';
+      html += `<td>
+        <div class="editable-value" contenteditable="true" oninput="onCellEdit('${section.id}',${ri},'${escapeJS(col)}',this.innerText)">${raw}</div>
+        <div class="cellprov">
+          <span id="badge-${section.id}-${ri}-${safeId(col)}">${provBadge(c.provenance)}</span>
+          <select onchange="onCellProv('${section.id}',${ri},'${escapeJS(col)}',this.value)">
+            ${PROV_ORDER.map(p=>`<option value="${p}" ${p===c.provenance?'selected':''}>${p}</option>`).join('')}
+          </select>
+        </div>
+        <div class="small">${c.note || ''}</div>
+      </td>`;
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+  return html;
+}
+function onCellEdit(sectionId, ri, col, value) {
+  const c = getSection(sectionId).data.rows[ri][col];
+  c.value = parseMaybeNumber(value);
+  c.provenance = 'modified';
+  c.note = 'edited in HTML workbench';
+  const badge = document.getElementById(`badge-${sectionId}-${ri}-${safeId(col)}`);
+  if (badge) badge.innerHTML = provBadge('modified');
+}
+function onCellProv(sectionId, ri, col, prov) {
+  const c = getSection(sectionId).data.rows[ri][col];
+  c.provenance = prov;
+  const badge = document.getElementById(`badge-${sectionId}-${ri}-${safeId(col)}`);
+  if (badge) badge.innerHTML = provBadge(prov);
+}
+function exportTableJSON(id) { downloadJSON(`${id}.json`, getSection(id).data.rows); }
+function exportTableCSV(id) {
+  const rows = getSection(id).data.rows;
+  const cols = Object.keys(rows[0] || {});
+  const csv = [cols.join(',')].concat(rows.map(r => cols.map(c => JSON.stringify(r[c].value ?? '')).join(','))).join('\n');
+  downloadText(`${id}.csv`, csv, 'text/csv');
+}
+function exportTableLatex(id) {
+  const sec = getSection(id), rows = sec.data.rows, cols = Object.keys(rows[0] || {});
+  let tex = [];
+  tex.push('% Exported from editable experiment workbench');
+  tex.push('\\begin{table}[t]'); tex.push('\\centering'); tex.push('\\small');
+  tex.push('\\begin{tabular}{' + 'l' + 'c'.repeat(Math.max(0, cols.length-1)) + '}');
+  tex.push('\\toprule');
+  tex.push(cols.join(' & ').replace(/↑/g,'$\\uparrow$').replace(/↓/g,'$\\downarrow$') + ' \\\\');
+  tex.push('\\midrule');
+  rows.forEach(r => tex.push(cols.map(c => String(r[c].value ?? '').replace(/_/g,'\\_')).join(' & ') + ' \\\\'));
+  tex.push('\\bottomrule'); tex.push('\\end{tabular}');
+  tex.push(`\\caption{${sec.title}. Exported draft table.}`); tex.push(`\\label{tab:${id}}`); tex.push('\\end{table}');
+  downloadText(`${id}.tex`, tex.join('\n'), 'text/x-tex');
+}
+
+function renderPanelGroup(section) {
+  section = normalizeSectionConfig(section);
+  const cfg = section.config, layout = cfg.layout, style = cfg.style, axes = cfg.axes, pd = cfg.provenanceDisplay;
+  let html = `<div class="group-box">
+    <h3>Shared figure-group config</h3>
+    <div class="config-grid">
+      <label>Columns <input type="number" min="1" max="6" value="${layout.columns}" onchange="setConfig('${section.id}','layout.columns',Number(this.value))"></label>
+      <label>Panel width <input type="number" value="${layout.panelWidth}" onchange="setConfig('${section.id}','layout.panelWidth',Number(this.value))"></label>
+      <label>Panel height <input type="number" value="${layout.panelHeight}" onchange="setConfig('${section.id}','layout.panelHeight',Number(this.value))"></label>
+      <label>Gap <input type="number" value="${layout.gap}" onchange="setConfig('${section.id}','layout.gap',Number(this.value))"></label>
+      <label>Font size <input type="number" value="${style.fontSize}" onchange="setConfig('${section.id}','style.fontSize',Number(this.value))"></label>
+      <label>Title font <input type="number" value="${style.titleFontSize}" onchange="setConfig('${section.id}','style.titleFontSize',Number(this.value))"></label>
+      <label>Line width <input type="number" step="0.1" value="${style.lineWidth}" onchange="setConfig('${section.id}','style.lineWidth',Number(this.value))"></label>
+      <label>Marker <input type="number" step="0.1" value="${style.markerSize}" onchange="setConfig('${section.id}','style.markerSize',Number(this.value))"></label>
+      <label>Legend <select onchange="setConfig('${section.id}','layout.legendPosition',this.value)">${['right','bottom','none'].map(v=>`<option value="${v}" ${layout.legendPosition===v?'selected':''}>${v}</option>`).join('')}</select></label>
+      <label>Shared legend <select onchange="setConfig('${section.id}','layout.sharedLegend',this.value==='true')"><option value="true" ${layout.sharedLegend?'selected':''}>yes</option><option value="false" ${!layout.sharedLegend?'selected':''}>no</option></select></label>
+      <label>Envelope <select onchange="setConfig('${section.id}','style.showEnvelope',this.value==='true')"><option value="true" ${style.showEnvelope?'selected':''}>show</option><option value="false" ${!style.showEnvelope?'selected':''}>hide</option></select></label>
+      <label>Share X <select onchange="setConfig('${section.id}','axes.shareX',this.value==='true')"><option value="true" ${axes.shareX?'selected':''}>yes</option><option value="false" ${!axes.shareX?'selected':''}>no</option></select></label>
+      <label>Share Y <select onchange="setConfig('${section.id}','axes.shareY',this.value==='true')"><option value="true" ${axes.shareY?'selected':''}>yes</option><option value="false" ${!axes.shareY?'selected':''}>no</option></select></label>
+      <label>Badges <select onchange="setConfig('${section.id}','provenanceDisplay.showBadges',this.value==='true')"><option value="true" ${pd.showBadges?'selected':''}>show</option><option value="false" ${!pd.showBadges?'selected':''}>hide</option></select></label>
+    </div>
+    <div class="toolbar">
+      <button onclick="exportGroupJSON('${section.id}')">Export group JSON</button>
+      <button onclick="exportGroupSVG('${section.id}')">Export group SVG</button>
+    </div>
+    <details class="config-editor">
+      <summary>Advanced: edit full figure-group config JSON</summary>
+      <textarea class="config-json" id="config-${section.id}">${htmlEscape(JSON.stringify(cfg, null, 2))}</textarea>
+      <div class="toolbar"><button onclick="applyGroupConfig('${section.id}')">Apply config + redraw</button></div>
+      <div class="small">Changing this config affects all panels in this group. It is exported with the workbench JSON.</div>
+    </details>
+    ${cfg.__modified ? '<div class="modified-note">Config has been modified in this HTML workbench.</div>' : ''}
+  </div>`;
+  if (layout.sharedLegend && layout.legendPosition !== 'none') html += renderSharedLegend(section);
+  html += `<div class="panel-grid" id="grid-${section.id}" style="grid-template-columns:repeat(${layout.columns || 2}, minmax(320px, 1fr)); gap:${layout.gap || 16}px;">`;
+  section.panels.forEach((p, i) => {
+    const letter = String.fromCharCode(65 + i);
+    html += `<div class="chart-card" id="card-${p.id}">
+      <h3>${layout.showPanelLetters ? `<span class="panel-letter">${letter}</span>` : ''}<span>${p.title}</span></h3>
+      <div class="chart-meta">${cfg.provenanceDisplay.showBadges ? panelProvenanceBadges(p) : ''}</div>
+      <div class="chartwrap">
+        <div>
+          <div class="svgbox" id="svgbox-${p.id}"></div>
+          <div class="toolbar">
+            <button onclick="exportPanelJSON('${section.id}','${p.id}')">Export panel JSON</button>
+            <button onclick="exportPanelSVG('${p.id}')">Export panel SVG</button>
+          </div>
+        </div>
+        <div>
+          <textarea id="json-${p.id}">${htmlEscape(JSON.stringify(p, null, 2))}</textarea>
+          <div class="toolbar"><button onclick="applyPanelJSON('${section.id}','${p.id}')">Apply panel JSON + redraw</button></div>
+          <div class="small">Editing panel JSON marks the panel, series, and points as <b>modified</b>.</div>
+        </div>
+      </div>
+    </div>`;
+  });
+  html += '</div>';
+  setTimeout(()=> section.panels.forEach(p => drawPanel(section.id, p.id)), 0);
+  return html;
+}
+function renderSharedLegend(section) {
+  const methods = getMethodOrder(section);
+  return `<div class="shared-legend"><strong>Shared legend:</strong> ${methods.map((m,i)=>`<span class="legend-item"><span class="legend-line" style="border-color:${colors[i % colors.length]}"></span>${escapeXML(m)}</span>`).join('')}</div>`;
+}
+function getMethodOrder(section) {
+  const fromConfig = (section.config.series && section.config.series.methodOrder) || [];
+  const seen = [];
+  (section.panels || []).forEach(p => (p.series || []).forEach(s => { if (s.name && !seen.includes(s.name)) seen.push(s.name); }));
+  return fromConfig.length ? fromConfig.filter(m => seen.includes(m)).concat(seen.filter(m => !fromConfig.includes(m))) : seen;
+}
+function methodColor(section, name) {
+  const order = getMethodOrder(section);
+  const idx = Math.max(0, order.indexOf(name));
+  return colors[idx % colors.length];
+}
+function panelProvenanceBadges(p) {
+  const seen = new Set();
+  if (p.provenance) seen.add(p.provenance);
+  if (p.series) p.series.forEach(s => { if(s.provenance) seen.add(s.provenance); (s.points||[]).forEach(pt=>{ if(pt.provenance) seen.add(pt.provenance); }); });
+  return Array.from(seen).map(provBadge).join(' ');
+}
+function setConfig(sectionId, path, value) {
+  const sec = getSection(sectionId);
+  const parts = path.split('.');
+  let obj = sec.config;
+  for (let i=0; i<parts.length-1; i++) obj = obj[parts[i]];
+  obj[parts[parts.length-1]] = value;
+  sec.config.__modified = true;
+  renderAll();
+}
+function applyGroupConfig(sectionId) {
+  const sec = getSection(sectionId);
+  try {
+    sec.config = deepMerge(DEFAULT_CONFIG, JSON.parse(document.getElementById(`config-${sectionId}`).value));
+    sec.config.__modified = true;
+    renderAll();
+  } catch (e) {
+    alert('Invalid config JSON: ' + e.message);
+  }
+}
+function exportGroupJSON(id) { downloadJSON(`${id}_figure_group.json`, getSection(id)); }
+function exportPanelJSON(sectionId, panelId) { downloadJSON(`${panelId}.json`, getPanel(sectionId,panelId)); }
+function applyPanelJSON(sectionId, panelId) {
+  const sec = getSection(sectionId);
+  const idx = sec.panels.findIndex(p => p.id === panelId);
+  try {
+    const edited = JSON.parse(document.getElementById(`json-${panelId}`).value);
+    markPanelModified(edited);
+    sec.panels[idx] = edited;
+    renderAll();
+  } catch (e) {
+    alert('Invalid panel JSON: ' + e.message);
+  }
+}
+function markPanelModified(p) {
+  p.provenance = 'modified';
+  if (p.series) p.series.forEach(s => { s.provenance = 'modified'; (s.points||[]).forEach(pt => pt.provenance = 'modified'); });
+}
+function exportPanelSVG(panelId) {
+  const svg = document.querySelector(`#svgbox-${panelId} svg`);
+  if (!svg) return;
+  downloadText(`${panelId}.svg`, new XMLSerializer().serializeToString(svg), 'image/svg+xml');
+}
+function exportGroupSVG(sectionId) {
+  const sec = getSection(sectionId), cfg = sec.config, layout = cfg.layout;
+  const cols = Number(layout.columns || 2), gap = Number(layout.gap || 16), pw = Number(layout.panelWidth || 360), ph = Number(layout.panelHeight || 260);
+  const rows = Math.ceil(sec.panels.length / cols);
+  const titleH = 34, legendH = (layout.sharedLegend && layout.legendPosition !== 'none') ? 32 : 0;
+  const w = cols * pw + (cols - 1) * gap;
+  const h = titleH + rows * ph + Math.max(0, rows - 1) * gap + legendH;
+  let out = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><rect width="100%" height="100%" fill="white"/>`;
+  out += `<text x="${w/2}" y="22" text-anchor="middle" font-family="Arial" font-size="16">${escapeXML(sec.title)}</text>`;
+  sec.panels.forEach((p, i) => {
+    const svg = document.querySelector(`#svgbox-${p.id} svg`);
+    if (!svg) return;
+    const inner = svg.innerHTML;
+    const col = i % cols, row = Math.floor(i / cols), x = col * (pw + gap), y = titleH + row * (ph + gap);
+    out += `<g transform="translate(${x},${y})">${inner}</g>`;
+  });
+  if (layout.sharedLegend && layout.legendPosition !== 'none') {
+    const y = h - 12;
+    getMethodOrder(sec).forEach((m, i) => {
+      const x = 12 + i * 112;
+      out += `<line x1="${x}" y1="${y}" x2="${x+18}" y2="${y}" stroke="${colors[i % colors.length]}" stroke-width="3"/>`;
+      out += `<text x="${x+24}" y="${y+4}" font-family="Arial" font-size="12">${escapeXML(m)}</text>`;
+    });
+  }
+  out += '</svg>';
+  downloadText(`${sectionId}_figure_group.svg`, out, 'image/svg+xml');
+}
+
+function computeDomain(section, panel, axis) {
+  const cfg = section.config, style = cfg.style;
+  const sourcePanels = (axis === 'x' && cfg.axes.shareX) || (axis === 'y' && cfg.axes.shareY) ? section.panels : [panel];
+  let vals = [];
+  sourcePanels.forEach(p => (p.series || []).forEach(s => (s.points || []).forEach(pt => {
+    if (axis === 'x') vals.push(Number(pt.x));
+    else {
+      vals.push(Number(pt.y));
+      if (style.showEnvelope && pt.std) { vals.push(Number(pt.y)+Number(pt.std)); vals.push(Number(pt.y)-Number(pt.std)); }
+    }
+  })));
+  vals = vals.filter(v => !Number.isNaN(v) && Number.isFinite(v));
+  if (!vals.length) return [0, 1];
+  let min = Math.min(...vals), max = Math.max(...vals);
+  if (min === max) { min -= 1; max += 1; }
+  if (axis === 'y') { const pad = (max - min) * 0.06; min -= pad; max += pad; }
+  return [min, max];
+}
+function drawPanel(sectionId, panelId) {
+  const sec = getSection(sectionId), p = getPanel(sectionId, panelId), box = document.getElementById(`svgbox-${panelId}`);
+  if (!box) return;
+  if (sec.panel_type === 'heatmap' || p.type === 'heatmap') box.innerHTML = drawHeatmap(p, sec);
+  else box.innerHTML = drawLinePanel(p, sec);
+}
+function drawLinePanel(p, section) {
+  const cfg = section.config, layout = cfg.layout, style = cfg.style, axes = cfg.axes;
+  const w = layout.panelWidth || 360, h = layout.panelHeight || 260, fs = style.fontSize || 12, tfs = style.titleFontSize || fs+2, marker = style.markerSize || 3, lw = style.lineWidth || 2;
+  const usePanelLegend = !(layout.sharedLegend) && layout.legendPosition !== 'none';
+  const ml = 54, mr = (usePanelLegend && layout.legendPosition === 'right') ? 118 : 22, mt = 34, mb = (usePanelLegend && layout.legendPosition === 'bottom') ? 58 : 42;
+  const [xmin, xmax] = computeDomain(section, p, 'x'), [ymin, ymax] = computeDomain(section, p, 'y');
+  const pw=w-ml-mr, ph=h-mt-mb;
+  const xmap=x=>ml + (Number(x)-xmin)/(xmax-xmin||1)*pw;
+  const ymap=y=>mt + (ymax-Number(y))/(ymax-ymin||1)*ph;
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">`;
+  svg += `<rect width="100%" height="100%" fill="white"/>`;
+  svg += `<text x="${w/2}" y="20" text-anchor="middle" font-size="${tfs}" font-family="Arial">${escapeXML(p.title)}</text>`;
+  if (style.showGrid) {
+    for(let i=0;i<5;i++){ const y=ymin+(ymax-ymin)*i/4; const py=ymap(y); svg+=`<line x1="${ml}" y1="${py}" x2="${w-mr}" y2="${py}" stroke="#e5e7eb"/>`; svg+=`<text x="${ml-8}" y="${py+4}" text-anchor="end" font-size="${fs-1}" font-family="Arial">${fmt(y)}</text>`; }
+  }
+  svg += `<line x1="${ml}" y1="${h-mb}" x2="${w-mr}" y2="${h-mb}" stroke="#111827"/>`;
+  svg += `<line x1="${ml}" y1="${mt}" x2="${ml}" y2="${h-mb}" stroke="#111827"/>`;
+  svg += `<text x="${ml+pw/2}" y="${h-8}" text-anchor="middle" font-size="${fs}" font-family="Arial">${escapeXML(p.xLabel || axes.xLabel || 'x')}</text>`;
+  svg += `<text transform="translate(14 ${mt+ph/2}) rotate(-90)" text-anchor="middle" font-size="${fs}" font-family="Arial">${escapeXML(p.yLabel || axes.yLabel || 'y')}</text>`;
+  (p.series||[]).forEach((s, si) => {
+    const col = methodColor(section, s.name || String(si));
+    const pts = s.points || [];
+    if (style.showEnvelope) {
+      const upper = pts.map(pt => `${xmap(pt.x)},${ymap(Number(pt.y)+(Number(pt.std)||0))}`).join(' ');
+      const lower = pts.slice().reverse().map(pt => `${xmap(pt.x)},${ymap(Number(pt.y)-(Number(pt.std)||0))}`).join(' ');
+      svg += `<polygon points="${upper} ${lower}" fill="${col}" opacity="0.10"/>`;
+    }
+    svg += `<polyline points="${pts.map(pt=>`${xmap(pt.x)},${ymap(pt.y)}`).join(' ')}" fill="none" stroke="${col}" stroke-width="${lw}"/>`;
+    pts.forEach(pt => {
+      svg += `<circle cx="${xmap(pt.x)}" cy="${ymap(pt.y)}" r="${marker}" fill="${col}"><title>${escapeXML(s.name)}: ${pt.y} [${pt.provenance||s.provenance||''}]</title></circle>`;
+      if (style.showValueLabels) svg += `<text x="${xmap(pt.x)+4}" y="${ymap(pt.y)-4}" font-size="${fs-2}" font-family="Arial">${fmt(pt.y)}</text>`;
+    });
+    if (usePanelLegend && layout.legendPosition === 'right') {
+      const ly = mt + 18*si + 8;
+      svg += `<line x1="${w-mr+18}" y1="${ly}" x2="${w-mr+34}" y2="${ly}" stroke="${col}" stroke-width="${lw}"/>`;
+      svg += `<text x="${w-mr+40}" y="${ly+4}" font-size="${fs}" font-family="Arial">${escapeXML(s.name)}</text>`;
+    } else if (usePanelLegend && layout.legendPosition === 'bottom') {
+      const lx = ml + 110*si; const ly = h-30;
+      svg += `<line x1="${lx}" y1="${ly}" x2="${lx+16}" y2="${ly}" stroke="${col}" stroke-width="${lw}"/>`;
+      svg += `<text x="${lx+22}" y="${ly+4}" font-size="${fs}" font-family="Arial">${escapeXML(s.name)}</text>`;
+    }
+  });
+  if (cfg.provenanceDisplay.showArtificialWatermark && panelHasProvenance(p, 'artificial')) svg += `<text x="${w-12}" y="${h-12}" text-anchor="end" font-size="${fs}" font-family="Arial" fill="#991b1b" opacity="0.55">ARTIFICIAL</text>`;
+  svg += '</svg>';
+  return svg;
+}
+function panelHasProvenance(p, prov) {
+  if (p.provenance === prov) return true;
+  return (p.series || []).some(s => s.provenance === prov || (s.points || []).some(pt => pt.provenance === prov));
+}
+function drawHeatmap(p, section) {
+  const layout = section.config.layout, style = section.config.style;
+  const w = layout.panelWidth || 360, h = layout.panelHeight || 300, fs = style.fontSize || 12;
+  const vals = p.values || [[]], rows = vals.length, cols = vals[0].length;
+  const ml=64, mt=42, cellW=(w-ml-22)/cols, cellH=(h-mt-42)/rows;
+  const flat = vals.flat().map(Number); const min=Math.min(...flat), max=Math.max(...flat);
+  const color = v => { const t=(Number(v)-min)/(max-min||1); const b=Math.round(245-150*t); const g=Math.round(245-130*t); return `rgb(${b},${g},255)`; };
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><rect width="100%" height="100%" fill="white"/>`;
+  svg += `<text x="${w/2}" y="22" text-anchor="middle" font-size="${style.titleFontSize || fs+2}" font-family="Arial">${escapeXML(p.title)}</text>`;
+  for(let r=0;r<rows;r++) {
+    svg += `<text x="${ml-8}" y="${mt+r*cellH+cellH/2+4}" text-anchor="end" font-size="${fs-1}" font-family="Arial">${escapeXML((p.yLabels||[])[r]||r)}</text>`;
+    for(let c=0;c<cols;c++) {
+      const x=ml+c*cellW, y=mt+r*cellH;
+      svg += `<rect class="heatmap-cell" x="${x}" y="${y}" width="${cellW}" height="${cellH}" fill="${color(vals[r][c])}"/>`;
+      svg += `<text x="${x+cellW/2}" y="${y+cellH/2+4}" text-anchor="middle" font-size="${fs-1}" font-family="Arial">${vals[r][c]}</text>`;
+    }
+  }
+  for(let c=0;c<cols;c++) svg += `<text x="${ml+c*cellW+cellW/2}" y="${mt-8}" text-anchor="middle" font-size="${fs-1}" font-family="Arial">${escapeXML((p.xLabels||[])[c]||c)}</text>`;
+  svg += '</svg>';
+  return svg;
+}
+
+function renderSection(sec) {
+  return `<div class="section-panel" id="${sec.id}">
+    <h2>${sec.number} ${sec.title}</h2>
+    <div class="desc">${sec.description}</div>
+    ${sec.kind === 'table' ? renderTable(sec) : renderPanelGroup(sec)}
+  </div>`;
+}
+function renderAll() {
+  state.sections = state.sections.map(normalizeSectionConfig);
+  setPage();
+  document.getElementById('sections').innerHTML = state.sections.map(renderSection).join('');
+}
+function exportHTMLSnapshot() {
+  const doc = document.documentElement.outerHTML.replace(/<script id="initial-data" type="application\/json">[\s\S]*?<\/script>/, `<script id="initial-data" type="application/json">${JSON.stringify(state).replace(/</g,'\\u003c')}<\/script>`);
+  downloadText('editable_review_snapshot.html', '<!doctype html>\n' + doc, 'text/html');
+}
+renderAll();
+</script>
+</body>
+</html>

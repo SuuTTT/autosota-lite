@@ -6,37 +6,64 @@
 
 Codex plugin skills should stay as direct children of `plugins/autosota-lite/skills/`. Category organization is tracked in `plugins/autosota-lite/references/skill-map.md`; nested category folders under `skills/` are avoided because direct `SKILL.md` discovery is the stable plugin layout.
 
-### Pipeline
-- **autosota-research-loop**: Coordinates the end-to-end research process (setup, baseline, ideation, iteration, audit, report).
-- **autosota-optimization-pipeline**: Coordinates generated ideas, human ideas, domain knowledge, reimplementation, logging, notifications, and publishing.
-- **autosota-agent-resource**: Maps paper assets, repositories, datasets, and checkpoints.
-- **autosota-agent-objective**: Defines and refines research objectives and success metrics.
-- **autosota-agent-scheduler**: General job scheduling and process management.
-- **autosota-agent-monitor**: Monitors long-running experiments and system health.
-- **autosota-agent-supervisor**: High-level oversight of scientific validity and benchmark red lines.
+### Pipeline & Orchestration
 
-### Reimplementation
-- **autosota-reimplementation**: Automated rewriting and porting of code (e.g., to JAX or CleanRL styles).
-- **autosota-agent-fix**: Debugs and resolves implementation errors.
-- **autosota-agent-init-fix**: Specifically handles initialization and setup-related issues.
+**Core Lifecycle:**
+- **autosota-research-loop**: Coordinates the end-to-end research process with six modes (setup, baseline, ideation, iteration, audit, report). Ensures benchmark safety, metric freezing, and scientific validity throughout.
+- **autosota-optimization-pipeline**: Post-baseline iteration orchestrator integrating generated ideas, human feedback, domain knowledge, code reimplementation, result logging, notifications, and publishing workflows.
+- **autosota-agent-scheduler**: General job scheduling, lifecycle management, and process orchestration for long-running experiments.
+- **autosota-agent-monitor**: Long-running experiment supervision with deadlock detection, phase-aware tracking, and pathological stalling intervention.
+- **autosota-agent-monitor-scheduler**: Combined monitoring and scheduling for persistent context management, execution reset recovery, and iterative optimization (Normal vs Leap paths).
 
-### Optimization
-- **autosota-agent-ideator**: Specialized in benchmark-safe improvement ideas and experiment design.
-- **autosota-human-idea-ingest**: Facilitates human-in-the-loop idea refinement.
-- **structural-entropy-proposal**: Structural Entropy, encoding-tree, hierarchy, and decoding-information proposal workflow.
-- **autosota-runtime-cost-estimator**: Estimates GPU costs and recommends hardware based on workload.
+**Research Context & Governance:**
+- **autosota-agent-resource**: Paper-to-repository grounding that maps paper assets, repositories, datasets, checkpoints, and research dependencies.
+- **autosota-agent-objective**: Research objective construction, rubric definition, and success metrics refinement.
+- **autosota-agent-supervisor**: Scientific validity enforcement, benchmark red-line governance, and experimental integrity auditing.
 
-### Common Operations
-- **autosota-common-key-manager**: Manages credentials for WandB, GitHub, Vast.ai, Slack, Overleaf, and publishing tools without leaking secrets.
-- **autosota-result-logger**: Automated logging to WandB and GitHub with credential-safe schema checks.
-- **autosota-common-iteration-notifier**: Sends or drafts completion, failure, and review-needed notifications.
-- **autosota-vastai-scheduler**: Manages GPU instances and job submission on Vast.ai.
-- **autosota-agent-monitor-scheduler**: Specialized monitoring for scheduled Vast.ai jobs.
+### Code Reimplementation & Debugging
 
-### Writing And Publishing
-- **scientific-writing-reverse-engineering**: Reverse-engineers sentence and paragraph functions from model papers.
-- **autosota-paper-writer**: Drafts ML research papers and human-readable reports.
-- **autosota-common-publisher**: Drafts blog posts, release notes, short social posts, and TikTok-style scripts from validated results.
+- **autosota-reimplementation**: Automated code rewriting and porting to CleanRL or JAX styles, producing compact and comparable implementations.
+- **autosota-agent-fix**: Runtime error diagnosis and repair, dependency resolution, and general debugging workflows.
+- **autosota-agent-init-fix**: Initialization, setup-phase configuration, and environment repair for dependency and version compatibility issues.
+
+### Optimization & Ideation
+
+**Idea Generation & Refinement:**
+- **autosota-agent-ideator**: AI-driven generation of benchmark-safe improvement ideas and structured experiment design.
+- **autosota-human-idea-ingest**: Human idea ingestion, normalization, domain knowledge integration, and collaborative refinement.
+- **structural-entropy-proposal**: Structural Entropy methodology, encoding trees, hierarchies, and decoding-information workflows for advanced optimization.
+
+**Resource & Cost Management:**
+- **autosota-runtime-cost-estimator**: GPU cost estimation, hardware recommendations based on workload profiles, and Vast.ai rental cost prediction.
+
+### Experiment Results & Reporting
+
+**Results Management:**
+- **exp_result_skill**: Generates provisional Experiments/Results sections with configurable multi-panel figures, editable review workbench, and mandatory provenance tracking (experimented, public, estimated, artificial, modified, derived).
+- **autosota-result-logger**: Standardized result logging to WandB, GitHub Gists, and local repositories with credential-safe schema validation.
+
+### Writing & Publication
+
+**Rhetorical & Structural Analysis:**
+- **scientific-writing-reverse-engineering**: Model-paper reverse-engineering using Hilary Glasman-Deal methods for sentence-by-sentence rhetorical function analysis; generates writing maps without plagiarism.
+- **scientific_writing_reverse_engineering_skill**: Enhanced variant with interactive HTML review workbench, editable writing maps, figure rendering tools, and example outputs.
+
+**Paper & Report Generation:**
+- **autosota-paper-writer**: Manuscripts, human-readable reports, and research paper drafting grounded in experimental results and validated findings.
+- **autosota-common-publisher**: Blog posts, release notes, short-form social content, and TikTok-style scripts drafted from validated experimental results.
+
+### Common Operations & Infrastructure
+
+**Credentials & Notifications:**
+- **autosota-common-key-manager**: Credential and API key hygiene for WandB, GitHub, Vast.ai, Slack, Overleaf, and publishing services without leaking secrets.
+- **autosota-common-iteration-notifier**: Iteration completion, failure, and review-needed notifications via Slack with draft fallback options.
+
+**Remote Compute:**
+- **autosota-vastai-scheduler**: Vast.ai instance search, cost filtering, launch, monitoring, and cleanup with integrated cost estimation.
+
+### Incomplete / Placeholder
+
+- **autosota-rl-experiment-section**: RL-specific experiment section generation (under development; no SKILL.md yet).
 
 ## Structure
 

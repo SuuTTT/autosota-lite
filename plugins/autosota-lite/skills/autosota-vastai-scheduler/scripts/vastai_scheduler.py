@@ -10,9 +10,11 @@ from __future__ import annotations
 
 import argparse
 import ast
+import base64
 import json
 import math
 import os
+import re
 import shlex
 import subprocess
 import sys
@@ -21,6 +23,75 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+
+# ---------------------------------------------------------------------------
+# Embedded Python metrics script (base64-encoded at import time so that the
+# bash on-start probe script can run it without quoting/escaping issues).
+# ---------------------------------------------------------------------------
+_PROBE_METRICS_PY = """\
+import csv, json, os, re, statistics
+
+def read_cpu(path):
+    line = open(path).read().split()
+    return [int(x) for x in line[1:]]
+
+def parse_meminfo(path):
+    d = {}
+    for ln in open(path):
+        m = re.match(r'(\\w+):\\s+(\\d+)', ln)
+        if m:
+            d[m.group(1)] = int(m.group(2))
+    return d
+
+try:
+    cpu0 = read_cpu('/tmp/vs_cpu_start.txt')
+    cpu1 = read_cpu('/tmp/vs_cpu_end.txt')
+    idle_delta = cpu1[3] - cpu0[3]
+    total_delta = sum(cpu1) - sum(cpu0)
+    cpu_util = round((1 - idle_delta / total_delta) * 100, 1) if total_delta > 0 else None
+except Exception:
+    cpu_util = None
+
+try:
+    mem = parse_meminfo('/tmp/vs_meminfo_end.txt')
+    ram_used_gb = round((mem.get('MemTotal', 0) - mem.get('MemAvailable', 0)) / 1024 / 1024, 2)
+    ram_total_gb = round(mem.get('MemTotal', 0) / 1024 / 1024, 2)
+except Exception:
+    ram_used_gb = ram_total_gb = None
+
+gpu_util, gpu_mem_util, gpu_mem_mb = [], [], []
+try:
+    with open('/workspace/vastai-job/gpu_samples.csv') as f:
+        for row in csv.reader(f):
+            try:
+                gpu_util.append(float(row[0].strip()))
+                gpu_mem_util.append(float(row[1].strip()))
+                gpu_mem_mb.append(float(row[2].strip()))
+            except (ValueError, IndexError):
+                pass
+except FileNotFoundError:
+    pass
+
+def avg_max(vals):
+    if not vals:
+        return {'avg': None, 'max': None}
+    return {'avg': round(statistics.mean(vals), 1), 'max': round(max(vals), 1)}
+
+metrics = {
+    'duration_seconds': int(os.environ.get('PROBE_DURATION', '0')),
+    'job_exit_code': int(os.environ.get('JOB_EXIT', '-1')),
+    'cpu_util_pct': cpu_util,
+    'ram_used_gb': ram_used_gb,
+    'ram_total_gb': ram_total_gb,
+    'gpu_util_pct': avg_max(gpu_util),
+    'gpu_mem_util_pct': avg_max(gpu_mem_util),
+    'gpu_mem_used_mb': avg_max(gpu_mem_mb),
+    'gpu_samples_count': len(gpu_util),
+}
+print('[vastai-scheduler probe-metrics ' + json.dumps(metrics) + ']')
+"""
+_PROBE_METRICS_B64: str = base64.b64encode(_PROBE_METRICS_PY.encode()).decode()
 
 
 DEFAULT_AVOID_COUNTRIES = "CN,US"
@@ -39,6 +110,7 @@ class SchedulerConfig:
     min_cpu_cores: float | None
     min_cpu_ram_gb: float | None
     min_reliability: float
+    max_hourly_cost: float
     max_storage_cost: float
     max_inet_up_cost: float
     max_inet_down_cost: float
@@ -153,6 +225,7 @@ def build_query(config: SchedulerConfig) -> str:
         f"reliability>{config.min_reliability}",
         f"num_gpus>={config.num_gpus}",
         f"disk_space>={config.disk_gb}",
+        f"dph_total<={config.max_hourly_cost}",
         f"storage_cost<={config.max_storage_cost}",
         f"inet_up_cost<={config.max_inet_up_cost}",
         f"inet_down_cost<={config.max_inet_down_cost}",
@@ -262,7 +335,16 @@ def summarize_offer(row: dict[str, Any], config: SchedulerConfig) -> dict[str, A
 def choose_offer(rows: list[dict[str, Any]], config: SchedulerConfig) -> dict[str, Any] | None:
     if not rows:
         return None
-    return min(rows, key=lambda row: (estimated_total_cost(row, config), -field_float(row, "reliability")))
+    eligible = [row for row in rows if hourly_cost(row) <= config.max_hourly_cost]
+    if not eligible:
+        excluded = len(rows)
+        print(
+            f"Warning: all {excluded} offer(s) exceed max_hourly_cost=${config.max_hourly_cost:.3f}/hr; "
+            "raise --max-hourly-cost to include them.",
+            file=sys.stderr,
+        )
+        return None
+    return min(eligible, key=lambda row: (estimated_total_cost(row, config), -field_float(row, "reliability")))
 
 
 def suggested_bid_price(row: dict[str, Any]) -> float:
@@ -409,6 +491,112 @@ def monitor_cleanup(instance_id: int, timeout_minutes: float, poll_seconds: floa
     }
 
 
+def build_probe_onstart(job_cmd: str, duration_seconds: int) -> str:
+    """Build an on-start bash script that runs job_cmd for duration_seconds, samples hardware
+    metrics, and emits a structured [vastai-scheduler probe-metrics {...}] log line."""
+    escaped = shlex.quote(job_cmd)
+    return f"""#!/usr/bin/env bash
+set -uo pipefail
+export DEBIAN_FRONTEND=noninteractive
+mkdir -p /workspace/vastai-job
+LOG=/workspace/vastai-job/job.log
+echo "[vastai-scheduler probe-start duration={duration_seconds}s] at $(date -Is)" | tee -a "$LOG"
+if ! command -v vastai >/dev/null 2>&1; then
+  python3 -m pip install --quiet vastai >>"$LOG" 2>&1 || pip install --quiet vastai >>"$LOG" 2>&1
+fi
+
+# GPU continuous sampling via nvidia-smi (one line every 5 s)
+GPU_CSV=/workspace/vastai-job/gpu_samples.csv
+nvidia-smi --query-gpu=utilization.gpu,utilization.memory,memory.used,memory.total,temperature.gpu \\
+  --format=csv,noheader,nounits -l 5 > "$GPU_CSV" 2>/dev/null &
+GPU_PID=$!
+
+# Baseline CPU snapshot
+head -1 /proc/stat > /tmp/vs_cpu_start.txt
+
+# Run the job for at most {duration_seconds} seconds
+set +e
+timeout {duration_seconds} bash -lc {escaped} >>"$LOG" 2>&1
+JOB_EXIT=$?
+export JOB_EXIT
+set -e
+
+# Stop GPU sampler
+kill "$GPU_PID" 2>/dev/null || true
+wait "$GPU_PID" 2>/dev/null || true
+
+# End-state snapshots
+head -1 /proc/stat > /tmp/vs_cpu_end.txt
+cp /proc/meminfo /tmp/vs_meminfo_end.txt
+
+# Decode and run the embedded metrics script
+export PROBE_DURATION={duration_seconds}
+echo '{_PROBE_METRICS_B64}' | base64 -d | python3 | tee -a "$LOG"
+
+echo "[vastai-scheduler] job exited at $(date -Is)" | tee -a "$LOG"
+vastai destroy instance "$CONTAINER_ID" --api-key "$CONTAINER_API_KEY" >>"$LOG" 2>&1 || true
+"""
+
+
+def extract_probe_metrics(log_text: str) -> dict[str, Any] | None:
+    """Extract the last probe-metrics JSON object from a log string, if present."""
+    for line in reversed(log_text.splitlines()):
+        m = re.search(r"\[vastai-scheduler probe-metrics (\{.*\})\]", line)
+        if m:
+            try:
+                return json.loads(m.group(1))
+            except json.JSONDecodeError:
+                pass
+    return None
+
+
+def monitor_probe(instance_id: int, timeout_minutes: float, poll_seconds: float) -> dict[str, Any]:
+    """Like monitor_cleanup but also captures probe-metrics from instance logs."""
+    time.sleep(5)
+    deadline = time.time() + timeout_minutes * 60
+    last_logs = ""
+    probe_metrics: dict[str, Any] | None = None
+    saw_job_exit = False
+    while time.time() < deadline:
+        if not instance_exists(instance_id):
+            return {
+                "instance_id": instance_id,
+                "gone": True,
+                "local_destroyed": False,
+                "saw_job_exit": saw_job_exit,
+                "probe_metrics": probe_metrics,
+            }
+        last_logs = instance_logs(instance_id, tail=500)
+        if probe_metrics is None:
+            probe_metrics = extract_probe_metrics(last_logs)
+        if "[vastai-scheduler] job exited" in last_logs:
+            saw_job_exit = True
+            if probe_metrics is None:
+                probe_metrics = extract_probe_metrics(last_logs)
+            time.sleep(min(poll_seconds, 10))
+            if instance_exists(instance_id):
+                run_vastai(["destroy", "instance", str(instance_id), "--raw"])
+                time.sleep(5)
+            return {
+                "instance_id": instance_id,
+                "gone": not instance_exists(instance_id),
+                "local_destroyed": True,
+                "saw_job_exit": True,
+                "probe_metrics": probe_metrics,
+            }
+        time.sleep(poll_seconds)
+    return {
+        "instance_id": instance_id,
+        "gone": not instance_exists(instance_id),
+        "local_destroyed": False,
+        "saw_job_exit": saw_job_exit,
+        "probe_metrics": probe_metrics,
+        "timeout": True,
+        "last_log_tail": "\n".join(last_logs.splitlines()[-20:]),
+    }
+
+
+
 def add_common_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--runtime-hours", type=float, required=True, help="Expected task wall-clock runtime.")
     parser.add_argument("--disk-gb", type=float, default=40.0, help="Disk to request and price, in GiB.")
@@ -420,6 +608,12 @@ def add_common_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--min-cpu-cores", type=float, default=None, help="Minimum effective CPU cores.")
     parser.add_argument("--min-cpu-ram-gb", type=float, default=None)
     parser.add_argument("--min-reliability", type=float, default=0.98)
+    parser.add_argument(
+        "--max-hourly-cost",
+        type=float,
+        default=0.10,
+        help="Hard cap on instance hourly cost in USD/hr. Offers above this are excluded. Default: $0.10/hr.",
+    )
     parser.add_argument("--max-storage-cost", type=float, default=0.20, help="Max $/GB/month.")
     parser.add_argument("--max-inet-up-cost", type=float, default=0.02, help="Max $/GB.")
     parser.add_argument("--max-inet-down-cost", type=float, default=0.02, help="Max $/GB.")
@@ -446,6 +640,7 @@ def config_from_args(args: argparse.Namespace) -> SchedulerConfig:
         min_cpu_cores=args.min_cpu_cores,
         min_cpu_ram_gb=args.min_cpu_ram_gb,
         min_reliability=args.min_reliability,
+        max_hourly_cost=args.max_hourly_cost,
         max_storage_cost=args.max_storage_cost,
         max_inet_up_cost=args.max_inet_up_cost,
         max_inet_down_cost=args.max_inet_down_cost,
@@ -488,6 +683,34 @@ def main() -> int:
         ),
     )
 
+    probe_parser = subparsers.add_parser(
+        "probe",
+        help=(
+            "Run a series of short probe jobs to measure actual GPU/CPU/memory utilisation "
+            "before committing to a long run."
+        ),
+    )
+    add_common_args(probe_parser)
+    probe_parser.add_argument("--job-cmd", required=True, help="Command to benchmark inside each probe instance.")
+    probe_parser.add_argument(
+        "--probe-durations",
+        default="30,40,50",
+        help="Comma-separated probe durations in seconds (default: '30,40,50').",
+    )
+    probe_parser.add_argument("--image", default=DEFAULT_IMAGE)
+    probe_parser.add_argument("--label", default=f"vastai-probe-{now()}")
+    probe_parser.add_argument("--ssh", action="store_true", help="Enable SSH injection.")
+    probe_parser.add_argument("--no-direct", action="store_true", help="Disable direct networking.")
+    probe_parser.add_argument("--cleanup-timeout-minutes", type=float, default=10.0)
+    probe_parser.add_argument("--cleanup-poll-seconds", type=float, default=10.0)
+    probe_parser.add_argument("--yes", action="store_true", help="Actually rent and run probe instances.")
+    probe_parser.add_argument("--save-json", type=Path, default=None)
+    probe_parser.add_argument(
+        "--pass-env",
+        default="",
+        help="Comma-separated env var names to inject into probe containers.",
+    )
+
     args = parser.parse_args()
     config = config_from_args(args)
     rows = search_offers(config)
@@ -498,6 +721,77 @@ def main() -> int:
     if args.command == "estimate":
         return 0 if rows else 1
 
+    # -----------------------------------------------------------------------
+    # probe: rent a series of short instances and collect hardware metrics
+    # -----------------------------------------------------------------------
+    if args.command == "probe":
+        probe_durations = [int(d.strip()) for d in args.probe_durations.split(",") if d.strip().isdigit()]
+        if not probe_durations:
+            print("Error: --probe-durations must be a comma-separated list of integers, e.g. '30,40,50'.", file=sys.stderr)
+            return 1
+
+        env_vars: dict[str, str] = {}
+        for var_name in parse_csv(getattr(args, "pass_env", "")):
+            value = os.environ.get(var_name)
+            if value is None:
+                print(f"Warning: --pass-env variable {var_name!r} not set locally; skipping.", file=sys.stderr)
+            else:
+                env_vars[var_name] = value
+
+        probe_results = []
+        for duration in probe_durations:
+            print(f"\n=== Probe run: {duration}s ===", file=sys.stderr)
+            chosen = choose_offer(rows, config)
+            if not chosen:
+                probe_results.append({"duration_seconds": duration, "error": "no_matching_offers"})
+                continue
+            offer_summary = summarize_offer(chosen, config)
+            if not args.yes:
+                probe_results.append({"duration_seconds": duration, "dry_run": True, "offer": offer_summary})
+                continue
+            offer_id = int(chosen.get("id") or chosen.get("ask_contract_id"))
+            if args.ssh:
+                ensure_ssh_key_registered()
+            try:
+                created = create_instance(
+                    offer_id=offer_id,
+                    image=args.image,
+                    disk_gb=config.disk_gb,
+                    label=f"{args.label}-{duration}s",
+                    onstart_cmd=build_probe_onstart(args.job_cmd, duration),
+                    use_ssh=args.ssh,
+                    direct=not args.no_direct,
+                    bid_price=suggested_bid_price(chosen) if config.offer_type == "bid" else None,
+                    env_vars=env_vars or None,
+                )
+            except RuntimeError as exc:
+                probe_results.append({"duration_seconds": duration, "error": str(exc)})
+                continue
+            contract_id = created.get("new_contract")
+            if not contract_id:
+                probe_results.append({
+                    "duration_seconds": duration,
+                    "error": "no_contract_id",
+                    "create_response": redact_mapping(created),
+                })
+                continue
+            cleanup = monitor_probe(int(contract_id), args.cleanup_timeout_minutes, args.cleanup_poll_seconds)
+            probe_results.append({
+                "duration_seconds": duration,
+                "offer": offer_summary,
+                "metrics": cleanup.pop("probe_metrics", None),
+                "cleanup": cleanup,
+            })
+
+        result = {"generated_at": now(), "probe_series": probe_results}
+        if args.save_json:
+            args.save_json.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        print(json.dumps(result, indent=2, sort_keys=True))
+        return 0
+
+    # -----------------------------------------------------------------------
+    # launch
+    # -----------------------------------------------------------------------
     chosen = choose_offer(rows, config)
     if not chosen:
         print("No matching offers found; nothing to launch.", file=sys.stderr)
@@ -516,7 +810,7 @@ def main() -> int:
     if args.ssh:
         ensure_ssh_key_registered()
 
-    env_vars: dict[str, str] = {}
+    env_vars = {}
     for var_name in parse_csv(getattr(args, "pass_env", "")):
         value = os.environ.get(var_name)
         if value is None:

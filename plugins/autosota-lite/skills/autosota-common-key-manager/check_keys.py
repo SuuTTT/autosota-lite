@@ -145,6 +145,32 @@ def check_openai() -> bool:
     return True  # not required for most workflows
 
 
+def check_email() -> bool:
+    user = os.getenv("GMAIL_USER")
+    password = os.getenv("GMAIL_APP_PASSWORD")
+    if not user or not password:
+        print("[Gmail] MISSING — need GMAIL_USER and GMAIL_APP_PASSWORD")
+        print("  Fix: Generate an app password at https://myaccount.google.com/apppasswords")
+        print("       Then: export GMAIL_USER=your@gmail.com")
+        print("       And:  export GMAIL_APP_PASSWORD=<app-password>")
+        return False
+    # Live-validate SMTP credentials.
+    import smtplib
+
+    try:
+        with smtplib.SMTP("smtp.gmail.com", 587, timeout=10) as server:
+            server.starttls()
+            server.login(user, password)
+        print(f"[Gmail] OK — SMTP login successful (user: {user})")
+        return True
+    except smtplib.SMTPAuthenticationError:
+        print(f"[Gmail] AUTHENTICATION FAILED — check app password")
+        return False
+    except Exception as exc:
+        print(f"[Gmail] SMTP check failed ({type(exc).__name__}: {exc})")
+        return False
+
+
 def main(argv: list[str] | None = None) -> int:
     import argparse
 
@@ -160,10 +186,37 @@ def main(argv: list[str] | None = None) -> int:
         default=True,
         help="Load .env.local before checking (default: true).",
     )
+    parser.add_argument(
+        "--gcp-project",
+        default=None,
+        help="GCP project ID for Secret Manager. If set, load secrets from GCP before checking.",
+    )
     args = parser.parse_args(argv)
 
     if args.load_env_local:
         _load_env_local()
+
+    # Load from GCP Secret Manager if project ID is provided.
+    if args.gcp_project:
+        try:
+            from gcp_secrets import load_autosota_secrets
+
+            print(f"[GCP] Loading secrets from project {args.gcp_project}...", file=sys.stderr)
+            results = load_autosota_secrets(args.gcp_project)
+            for env_var, status in results.items():
+                if status == "ok":
+                    print(f"[GCP] {env_var}: {status}", file=sys.stderr)
+                elif status == "missing":
+                    print(f"[GCP] {env_var}: secret not found in GCP", file=sys.stderr)
+                elif status.startswith("error"):
+                    print(f"[GCP] {env_var}: {status}", file=sys.stderr)
+        except ImportError:
+            print("[GCP] ERROR: gcp_secrets module not found or google-cloud-secret-manager not installed", file=sys.stderr)
+            print("[GCP] Install with: pip install google-cloud-secret-manager", file=sys.stderr)
+            return 1
+        except Exception as exc:
+            print(f"[GCP] ERROR loading secrets: {exc}", file=sys.stderr)
+            return 1
 
     service_checks = {
         "wandb": check_wandb,
@@ -171,6 +224,7 @@ def main(argv: list[str] | None = None) -> int:
         "github": check_github,
         "slack": check_slack,
         "openai": check_openai,
+        "email": check_email,
     }
 
     requested = [s.strip().lower() for s in args.services.split(",") if s.strip()]

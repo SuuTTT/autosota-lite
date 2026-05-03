@@ -1,0 +1,581 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Editable Experiment Workbench</title>
+<style>
+:root { --bg:#f6f7fb; --panel:#fff; --ink:#1f2937; --muted:#667085; --line:#e5e7eb; --accent:#2563eb; --soft:#f8fafc; }
+* { box-sizing: border-box; }
+body { margin:0; font-family: Inter, Arial, sans-serif; background:var(--bg); color:var(--ink); }
+header { padding:18px 28px; background:#111827; color:white; position:sticky; top:0; z-index:5; box-shadow:0 2px 10px #0004; }
+header h1 { margin:0 0 6px; font-size:20px; }
+header .sub { color:#cbd5e1; font-size:13px; }
+main { padding:22px; max-width:1700px; margin:auto; }
+.warning { padding:12px 14px; background:#fff7ed; border:1px solid #fdba74; border-radius:12px; margin-bottom:16px; }
+.legend { display:flex; flex-wrap:wrap; gap:8px; margin:12px 0 20px; }
+.badge { display:inline-block; border-radius:999px; padding:3px 8px; font-size:10px; font-weight:700; white-space:nowrap; }
+.grid { display:grid; grid-template-columns: 260px 1fr; gap:18px; align-items:start; }
+nav { position:sticky; top:86px; background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:12px; max-height:calc(100vh - 110px); overflow:auto; }
+nav a { display:block; padding:8px 10px; border-radius:9px; text-decoration:none; color:#374151; font-size:13px; }
+nav a:hover { background:#eef2ff; color:#1d4ed8; }
+.section-panel { background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:16px; margin-bottom:18px; box-shadow:0 1px 2px #0000000f; }
+.section-panel h2 { margin:0 0 4px; font-size:19px; }
+.desc { color:var(--muted); margin-bottom:12px; font-size:13px; }
+.toolbar, .group-controls { display:flex; flex-wrap:wrap; gap:8px; margin:10px 0; align-items:center; }
+button { border:1px solid #cbd5e1; background:white; border-radius:9px; padding:7px 10px; cursor:pointer; font-size:12px; }
+button:hover { border-color:#2563eb; color:#2563eb; }
+input, select { border:1px solid #cbd5e1; border-radius:8px; padding:5px 7px; font-size:12px; background:white; }
+label { font-size:12px; color:#334155; display:inline-flex; gap:5px; align-items:center; }
+table { border-collapse:collapse; width:100%; font-size:13px; background:white; }
+th, td { border:1px solid #e5e7eb; padding:8px; vertical-align:top; min-width:110px; }
+th { background:#f8fafc; position:sticky; top:77px; z-index:1; }
+td[contenteditable="true"], .editable-value { background:#fff; outline:0; }
+.editable-value:focus { box-shadow:inset 0 0 0 2px #2563eb; }
+.cellprov { margin-top:5px; display:flex; gap:5px; align-items:center; justify-content:space-between; }
+.cellprov select { font-size:11px; max-width:130px; }
+.group-box { border:1px solid #e2e8f0; background:#fbfdff; border-radius:14px; padding:12px; margin:12px 0 14px; }
+.group-box h3 { margin:0 0 8px; font-size:14px; }
+.config-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap:8px; }
+.config-editor summary { cursor:pointer; font-size:13px; color:#1d4ed8; margin:8px 0; }
+.panel-grid { display:grid; gap:16px; align-items:start; }
+.chart-card { border:1px solid #e5e7eb; border-radius:14px; padding:12px; background:#fcfcfd; }
+.chart-card h3 { margin:0 0 4px; font-size:15px; display:flex; gap:8px; align-items:center; }
+.panel-letter { display:inline-flex; width:22px; height:22px; border-radius:999px; background:#111827; color:white; align-items:center; justify-content:center; font-size:12px; }
+.chart-meta { color:#667085; font-size:12px; margin-bottom:8px; display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+.shared-legend { display:flex; flex-wrap:wrap; gap:14px; align-items:center; padding:8px 10px; border:1px solid #e5e7eb; border-radius:12px; background:white; margin:10px 0; font-size:12px; }
+.legend-item { display:inline-flex; align-items:center; gap:6px; }
+.legend-line { width:18px; height:0; border-top:3px solid #000; display:inline-block; }
+.chartwrap { display:grid; grid-template-columns:minmax(340px, 1fr) minmax(280px, 0.75fr); gap:12px; align-items:start; }
+.svgbox { border:1px solid #e5e7eb; border-radius:12px; background:white; overflow:auto; padding:6px; }
+textarea { width:100%; min-height:230px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size:12px; border:1px solid #cbd5e1; border-radius:10px; padding:10px; }
+textarea.config-json { min-height:270px; }
+.heatmap-cell { stroke:white; stroke-width:2; }
+.footerbar { margin:22px 0; display:flex; gap:10px; flex-wrap:wrap; }
+.small { font-size:12px; color:#667085; }
+.modified-note { color:#b45309; font-size:12px; font-weight:700; }
+@media (max-width: 1050px) {
+  .grid { grid-template-columns:1fr; }
+  nav { position:relative; top:0; }
+  .chartwrap { grid-template-columns:1fr; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1 id="page-title"></h1>
+  <div class="sub">Editable provisional experiment dashboard. Multi-panel figures use a shared JSON config plus per-panel data.</div>
+</header>
+<main>
+  <div class="warning"><strong>Draft-only:</strong> artificial and estimated data are placeholders for planning/layout review. Replace before paper submission.</div>
+  <div class="legend" id="legend"></div>
+  <div class="footerbar">
+    <button onclick="downloadJSON('workbench_modified.json', state)">Export whole workbench JSON</button>
+    <button onclick="exportHTMLSnapshot()">Export self-contained HTML snapshot</button>
+  </div>
+  <div class="grid">
+    <nav id="nav"></nav>
+    <section id="sections"></section>
+  </div>
+</main>
+
+<script id="initial-data" type="application/json">__WORKBENCH_JSON__</script>
+<script>
+let state = JSON.parse(document.getElementById('initial-data').textContent);
+const colors = ["#2563eb","#dc2626","#16a34a","#7c3aed","#ea580c","#0891b2","#be123c","#4b5563"];
+const PROV_ORDER = ["experimented","public","estimated","artificial","modified","derived"];
+const DEFAULT_CONFIG = {
+  layout: { columns: 3, panelWidth: 360, panelHeight: 260, gap: 18, sharedLegend: true, legendPosition: "bottom", showPanelLetters: true },
+  style: { fontSize: 12, titleFontSize: 14, lineWidth: 2, markerSize: 3, showGrid: true, showEnvelope: true, showValueLabels: false },
+  axes: { xLabel: "x", yLabel: "y", xScale: "linear", yScale: "linear", shareX: true, shareY: false },
+  series: { methods: [], methodOrder: [], highlightMethods: [] },
+  provenanceDisplay: { showBadges: true, showModifiedWarning: true, showArtificialWatermark: true },
+  export: { formats: ["json", "svg"], exportEachPanel: true, exportWholeGroup: true }
+};
+
+// ── state normalization ──────────────────────────────────────────────────────
+function normalizeState(s) {
+  // 1. paper: support both top-level paper object and meta fallback
+  s.paper = s.paper || s.meta || {};
+  if (!s.paper.title && s.meta && s.meta.title) s.paper.title = s.meta.title;
+  if (!s.paper.title && s.meta && s.meta.paper_title) s.paper.title = s.meta.paper_title;
+
+  // 2. provenanceLegend: accept snake_case or camelCase key
+  s.provenanceLegend = s.provenanceLegend || s.provenance_legend || {};
+
+  // 3. Merge tables and figure_groups into sections array if they are separate
+  const seenIds = new Set((s.sections || []).map(x => x.id));
+  const extra = [];
+  (s.tables || []).forEach(t => {
+    if (!seenIds.has(t.id)) { extra.push(normalizeTableSection(t)); seenIds.add(t.id); }
+  });
+  (s.figure_groups || []).forEach(fg => {
+    if (!seenIds.has(fg.id)) { extra.push(fg); seenIds.add(fg.id); }
+  });
+  s.sections = [...(s.sections || []), ...extra];
+
+  // 4. Sort by section number if available
+  s.sections.sort((a, b) => {
+    const na = parseFloat(String(a.number || '99').replace(/[^0-9.]/g, '')) || 99;
+    const nb = parseFloat(String(b.number || '99').replace(/[^0-9.]/g, '')) || 99;
+    return na - nb;
+  });
+
+  return s;
+}
+
+// Convert a table from {rows:[{row_label, cells:{col:{value,provenance,note}}}]}
+// or {rows:[{col:{value,provenance,note}}]}  →  internal {data:{rows:[{col:{value,provenance,note}}]}}
+function normalizeTableSection(t) {
+  if (t.data && Array.isArray(t.data.rows)) return t; // already normalized
+  const rawRows = t.rows || (t.data && t.data.rows) || [];
+  const normalizedRows = rawRows.map(r => {
+    // If row has a "cells" key, flatten: merge row_label as first column
+    if (r.cells && typeof r.cells === 'object') {
+      const flat = {};
+      // prepend row_label as a virtual cell if not already in cells
+      if (r.row_label !== undefined && !r.cells['row_label'] && !r.cells['Task'] && !r.cells['Step'] && !r.cells['Variant'] && !r.cells['λ_SE'] && !r.cells['Suite']) {
+        const firstKey = t.columns ? t.columns[0] : 'Row';
+        if (!r.cells[firstKey]) flat[firstKey] = {value: r.row_label, provenance: 'public', note: ''};
+      }
+      Object.assign(flat, r.cells);
+      return flat;
+    }
+    return r;
+  });
+  t.data = {rows: normalizedRows};
+  // Derive columns from first row if not set
+  if (!t.columns && normalizedRows.length) t.columns = Object.keys(normalizedRows[0]);
+  return t;
+}
+
+state = normalizeState(state);
+
+function deepMerge(base, override) {
+  const out = JSON.parse(JSON.stringify(base || {}));
+  for (const [k, v] of Object.entries(override || {})) {
+    if (v && typeof v === 'object' && !Array.isArray(v) && out[k] && typeof out[k] === 'object' && !Array.isArray(out[k])) out[k] = deepMerge(out[k], v);
+    else out[k] = v;
+  }
+  return out;
+}
+function normalizeSectionConfig(sec) {
+  if (sec.kind !== 'panel_group') return sec;
+  sec.config = deepMerge(DEFAULT_CONFIG, sec.config || {});
+  if (sec.layout) {
+    const map = { columns:['layout','columns'], panelWidth:['layout','panelWidth'], panelHeight:['layout','panelHeight'], legendPosition:['layout','legendPosition'], fontSize:['style','fontSize'], markerSize:['style','markerSize'], showEnvelope:['style','showEnvelope'] };
+    for (const [oldKey, path] of Object.entries(map)) {
+      if (sec.layout[oldKey] !== undefined) sec.config[path[0]][path[1]] = sec.layout[oldKey];
+    }
+  }
+  const methods = [];
+  (sec.panels || []).forEach(p => (p.series || []).forEach(s => { if (s.name && !methods.includes(s.name)) methods.push(s.name); }));
+  if (!sec.config.series.methods.length) sec.config.series.methods = methods;
+  if (!sec.config.series.methodOrder.length) sec.config.series.methodOrder = methods;
+  const fp = (sec.panels || [])[0] || {};
+  if ((!sec.config.axes.xLabel || sec.config.axes.xLabel === 'x') && fp.xLabel) sec.config.axes.xLabel = fp.xLabel;
+  if ((!sec.config.axes.yLabel || sec.config.axes.yLabel === 'y') && fp.yLabel) sec.config.axes.yLabel = fp.yLabel;
+  return sec;
+}
+state.sections = state.sections.map(normalizeSectionConfig);
+
+const PROV_DEFAULTS = {
+  experimented: {label:'EXPERIMENTED', color:'#dcfce7', text:'#166534'},
+  public:       {label:'PUBLIC',       color:'#dbeafe', text:'#1e40af'},
+  estimated:    {label:'ESTIMATED',    color:'#fef3c7', text:'#92400e'},
+  artificial:   {label:'ARTIFICIAL',   color:'#fee2e2', text:'#991b1b'},
+  modified:     {label:'MODIFIED',     color:'#f3e8ff', text:'#6b21a8'},
+  derived:      {label:'DERIVED',      color:'#f1f5f9', text:'#475569'},
+};
+function provBadge(p) {
+  const custom = (state.provenanceLegend || {})[p];
+  const meta = custom ? {label: custom.label || String(p||'').toUpperCase(), color: custom.color || '#eee', text: custom.text_color || custom.text || '#333'}
+    : (PROV_DEFAULTS[p] || {label:String(p||'').toUpperCase(), color:'#eee', text:'#333'});
+  return `<span class="badge" style="background:${meta.color};color:${meta.text}">${meta.label}</span>`;
+}
+function setPage() {
+  const paper = state.paper || {};
+  document.getElementById('page-title').textContent = paper.title || paper.paper_title || 'Experiment Workbench';
+  document.getElementById('legend').innerHTML = PROV_ORDER.map(p => provBadge(p)).join('');
+  document.getElementById('nav').innerHTML = state.sections.map(s => `<a href="#${s.id}">${s.number ? s.number + ' ' : ''}${s.title}</a>`).join('');
+}
+function fmt(v) {
+  if (typeof v === 'number') return v.toFixed(2);
+  const n = Number(v);
+  if (!Number.isNaN(n) && String(v).trim() !== '') return n.toFixed(2);
+  return String(v ?? '');
+}
+function getSection(id) { return state.sections.find(s => s.id === id); }
+function getPanel(sectionId, panelId) { return getSection(sectionId).panels.find(p => p.id === panelId); }
+function downloadText(filename, text, mime='text/plain') {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], {type:mime}));
+  a.download = filename;
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+}
+function downloadJSON(filename, obj) { downloadText(filename, JSON.stringify(obj, null, 2), 'application/json'); }
+function escapeJS(s) { return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
+function safeId(s) { return String(s).replace(/[^a-zA-Z0-9_-]/g,'_'); }
+function parseMaybeNumber(x) { const n = Number(String(x).trim()); return Number.isNaN(n) ? x : n; }
+function htmlEscape(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function escapeXML(s) { return String(s ?? '').replace(/[<>&'"]/g, ch => ({'<':'&lt;','>':'&gt;','&':'&amp;',"'":'&apos;','"':'&quot;'}[ch])); }
+
+function renderTable(section) {
+  // Support both section.data.rows (v5 canonical) and section.rows (raw from some generators)
+  const rows = (section.data && section.data.rows) ? section.data.rows : (section.rows || []);
+  // Derive column list: use section.columns, or keys of first row
+  const cols = section.columns || Object.keys(rows[0] || {});
+  if (!rows.length || !cols.length) {
+    return `<div class="toolbar">
+      <button onclick="exportTableJSON('${section.id}')">Export JSON</button>
+      <button onclick="exportTableCSV('${section.id}')">Export CSV</button>
+      <button onclick="exportTableLatex('${section.id}')">Export LaTeX</button>
+    </div><p class="small">No data rows available.</p>`;
+  }
+  let html = `<div class="toolbar">
+    <button onclick="exportTableJSON('${section.id}')">Export JSON</button>
+    <button onclick="exportTableCSV('${section.id}')">Export CSV</button>
+    <button onclick="exportTableLatex('${section.id}')">Export LaTeX</button>
+  </div>`;
+  html += `<div style="overflow:auto"><table><thead><tr>${cols.map(c=>`<th>${htmlEscape(String(c))}</th>`).join('')}</tr></thead><tbody>`;
+  rows.forEach((row, ri) => {
+    html += '<tr>';
+    cols.forEach(col => {
+      const c = row[col] || {value: '', provenance: 'public', note: ''};
+      const raw = c.value ?? '';
+      const displayVal = (c.std !== undefined && c.std !== null && c.std !== '')
+        ? `${raw} ±${c.std}` : raw;
+      html += `<td>
+        <div class="editable-value" contenteditable="true" oninput="onCellEdit('${section.id}',${ri},'${escapeJS(col)}',this.innerText)">${htmlEscape(String(displayVal))}</div>
+        <div class="cellprov">
+          <span id="badge-${section.id}-${ri}-${safeId(col)}">${provBadge(c.provenance)}</span>
+          <select onchange="onCellProv('${section.id}',${ri},'${escapeJS(col)}',this.value)">
+            ${PROV_ORDER.map(p=>`<option value="${p}" ${p===c.provenance?'selected':''}>${p}</option>`).join('')}
+          </select>
+        </div>
+        <div class="small">${htmlEscape(c.note || '')}</div>
+      </td>`;
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+  return html;
+}
+function getTableRows(sec) {
+  return (sec.data && sec.data.rows) ? sec.data.rows : (sec.rows || []);
+}
+function getTableCols(sec) {
+  const rows = getTableRows(sec);
+  return sec.columns || Object.keys(rows[0] || {});
+}
+function onCellEdit(sectionId, ri, col, value) {
+  const sec = getSection(sectionId);
+  const rows = getTableRows(sec);
+  if (!rows[ri]) return;
+  rows[ri][col] = rows[ri][col] || {};
+  rows[ri][col].value = parseMaybeNumber(value);
+  rows[ri][col].provenance = 'modified';
+  rows[ri][col].note = 'edited in HTML workbench';
+  const badge = document.getElementById(`badge-${sectionId}-${ri}-${safeId(col)}`);
+  if (badge) badge.innerHTML = provBadge('modified');
+}
+function onCellProv(sectionId, ri, col, prov) {
+  const sec = getSection(sectionId);
+  const rows = getTableRows(sec);
+  if (!rows[ri] || !rows[ri][col]) return;
+  rows[ri][col].provenance = prov;
+  const badge = document.getElementById(`badge-${sectionId}-${ri}-${safeId(col)}`);
+  if (badge) badge.innerHTML = provBadge(prov);
+}
+function exportTableJSON(id) { const sec=getSection(id); downloadJSON(`${id}.json`, getTableRows(sec)); }
+function exportTableCSV(id) {
+  const sec = getSection(id), rows = getTableRows(sec), cols = getTableCols(sec);
+  const csv = [cols.join(',')].concat(rows.map(r => cols.map(c => JSON.stringify((r[c] && r[c].value) ?? '')).join(','))).join('\n');
+  downloadText(`${id}.csv`, csv, 'text/csv');
+}
+function exportTableLatex(id) {
+  const sec = getSection(id), rows = getTableRows(sec), cols = getTableCols(sec);
+  let tex = [];
+  tex.push('% Exported from editable experiment workbench');
+  tex.push('\\begin{table}[t]'); tex.push('\\centering'); tex.push('\\small');
+  tex.push('\\begin{tabular}{' + 'l' + 'c'.repeat(Math.max(0, cols.length-1)) + '}');
+  tex.push('\\toprule');
+  tex.push(cols.join(' & ').replace(/↑/g,'$\\uparrow$').replace(/↓/g,'$\\downarrow$') + ' \\\\');
+  tex.push('\\midrule');
+  rows.forEach(r => tex.push(cols.map(c => String((r[c] && r[c].value) ?? '').replace(/_/g,'\\_')).join(' & ') + ' \\\\'));
+  tex.push('\\bottomrule'); tex.push('\\end{tabular}');
+  tex.push(`\\caption{${sec.title}. Exported draft table.}`); tex.push(`\\label{tab:${id}}`); tex.push('\\end{table}');
+  downloadText(`${id}.tex`, tex.join('\n'), 'text/x-tex');
+}
+
+function renderPanelGroup(section) {
+  section = normalizeSectionConfig(section);
+  const cfg = section.config, layout = cfg.layout, style = cfg.style, axes = cfg.axes, pd = cfg.provenanceDisplay;
+  let html = `<div class="group-box">
+    <h3>Shared figure-group config</h3>
+    <div class="config-grid">
+      <label>Columns <input type="number" min="1" max="6" value="${layout.columns}" onchange="setConfig('${section.id}','layout.columns',Number(this.value))"></label>
+      <label>Panel width <input type="number" value="${layout.panelWidth}" onchange="setConfig('${section.id}','layout.panelWidth',Number(this.value))"></label>
+      <label>Panel height <input type="number" value="${layout.panelHeight}" onchange="setConfig('${section.id}','layout.panelHeight',Number(this.value))"></label>
+      <label>Gap <input type="number" value="${layout.gap}" onchange="setConfig('${section.id}','layout.gap',Number(this.value))"></label>
+      <label>Font size <input type="number" value="${style.fontSize}" onchange="setConfig('${section.id}','style.fontSize',Number(this.value))"></label>
+      <label>Title font <input type="number" value="${style.titleFontSize}" onchange="setConfig('${section.id}','style.titleFontSize',Number(this.value))"></label>
+      <label>Line width <input type="number" step="0.1" value="${style.lineWidth}" onchange="setConfig('${section.id}','style.lineWidth',Number(this.value))"></label>
+      <label>Marker <input type="number" step="0.1" value="${style.markerSize}" onchange="setConfig('${section.id}','style.markerSize',Number(this.value))"></label>
+      <label>Legend <select onchange="setConfig('${section.id}','layout.legendPosition',this.value)">${['right','bottom','none'].map(v=>`<option value="${v}" ${layout.legendPosition===v?'selected':''}>${v}</option>`).join('')}</select></label>
+      <label>Shared legend <select onchange="setConfig('${section.id}','layout.sharedLegend',this.value==='true')"><option value="true" ${layout.sharedLegend?'selected':''}>yes</option><option value="false" ${!layout.sharedLegend?'selected':''}>no</option></select></label>
+      <label>Envelope <select onchange="setConfig('${section.id}','style.showEnvelope',this.value==='true')"><option value="true" ${style.showEnvelope?'selected':''}>show</option><option value="false" ${!style.showEnvelope?'selected':''}>hide</option></select></label>
+      <label>Share X <select onchange="setConfig('${section.id}','axes.shareX',this.value==='true')"><option value="true" ${axes.shareX?'selected':''}>yes</option><option value="false" ${!axes.shareX?'selected':''}>no</option></select></label>
+      <label>Share Y <select onchange="setConfig('${section.id}','axes.shareY',this.value==='true')"><option value="true" ${axes.shareY?'selected':''}>yes</option><option value="false" ${!axes.shareY?'selected':''}>no</option></select></label>
+      <label>Badges <select onchange="setConfig('${section.id}','provenanceDisplay.showBadges',this.value==='true')"><option value="true" ${pd.showBadges?'selected':''}>show</option><option value="false" ${!pd.showBadges?'selected':''}>hide</option></select></label>
+    </div>
+    <div class="toolbar">
+      <button onclick="exportGroupJSON('${section.id}')">Export group JSON</button>
+      <button onclick="exportGroupSVG('${section.id}')">Export group SVG</button>
+    </div>
+    <details class="config-editor">
+      <summary>Advanced: edit full figure-group config JSON</summary>
+      <textarea class="config-json" id="config-${section.id}">${htmlEscape(JSON.stringify(cfg, null, 2))}</textarea>
+      <div class="toolbar"><button onclick="applyGroupConfig('${section.id}')">Apply config + redraw</button></div>
+      <div class="small">Changing this config affects all panels in this group. It is exported with the workbench JSON.</div>
+    </details>
+    ${cfg.__modified ? '<div class="modified-note">Config has been modified in this HTML workbench.</div>' : ''}
+  </div>`;
+  if (layout.sharedLegend && layout.legendPosition !== 'none') html += renderSharedLegend(section);
+  html += `<div class="panel-grid" id="grid-${section.id}" style="grid-template-columns:repeat(${layout.columns || 2}, minmax(320px, 1fr)); gap:${layout.gap || 16}px;">`;
+  section.panels.forEach((p, i) => {
+    const letter = String.fromCharCode(65 + i);
+    html += `<div class="chart-card" id="card-${p.id}">
+      <h3>${layout.showPanelLetters ? `<span class="panel-letter">${letter}</span>` : ''}<span>${p.title}</span></h3>
+      <div class="chart-meta">${cfg.provenanceDisplay.showBadges ? panelProvenanceBadges(p) : ''}</div>
+      <div class="chartwrap">
+        <div>
+          <div class="svgbox" id="svgbox-${p.id}"></div>
+          <div class="toolbar">
+            <button onclick="exportPanelJSON('${section.id}','${p.id}')">Export panel JSON</button>
+            <button onclick="exportPanelSVG('${p.id}')">Export panel SVG</button>
+          </div>
+        </div>
+        <div>
+          <textarea id="json-${p.id}">${htmlEscape(JSON.stringify(p, null, 2))}</textarea>
+          <div class="toolbar"><button onclick="applyPanelJSON('${section.id}','${p.id}')">Apply panel JSON + redraw</button></div>
+          <div class="small">Editing panel JSON marks the panel, series, and points as <b>modified</b>.</div>
+        </div>
+      </div>
+    </div>`;
+  });
+  html += '</div>';
+  setTimeout(()=> section.panels.forEach(p => drawPanel(section.id, p.id)), 0);
+  return html;
+}
+function renderSharedLegend(section) {
+  const methods = getMethodOrder(section);
+  return `<div class="shared-legend"><strong>Shared legend:</strong> ${methods.map((m,i)=>`<span class="legend-item"><span class="legend-line" style="border-color:${colors[i % colors.length]}"></span>${escapeXML(m)}</span>`).join('')}</div>`;
+}
+function getMethodOrder(section) {
+  const fromConfig = (section.config.series && section.config.series.methodOrder) || [];
+  const seen = [];
+  (section.panels || []).forEach(p => (p.series || []).forEach(s => { if (s.name && !seen.includes(s.name)) seen.push(s.name); }));
+  return fromConfig.length ? fromConfig.filter(m => seen.includes(m)).concat(seen.filter(m => !fromConfig.includes(m))) : seen;
+}
+function methodColor(section, name) {
+  const order = getMethodOrder(section);
+  const idx = Math.max(0, order.indexOf(name));
+  return colors[idx % colors.length];
+}
+function panelProvenanceBadges(p) {
+  const seen = new Set();
+  if (p.provenance) seen.add(p.provenance);
+  if (p.series) p.series.forEach(s => { if(s.provenance) seen.add(s.provenance); (s.points||[]).forEach(pt=>{ if(pt.provenance) seen.add(pt.provenance); }); });
+  return Array.from(seen).map(provBadge).join(' ');
+}
+function setConfig(sectionId, path, value) {
+  const sec = getSection(sectionId);
+  const parts = path.split('.');
+  let obj = sec.config;
+  for (let i=0; i<parts.length-1; i++) obj = obj[parts[i]];
+  obj[parts[parts.length-1]] = value;
+  sec.config.__modified = true;
+  renderAll();
+}
+function applyGroupConfig(sectionId) {
+  const sec = getSection(sectionId);
+  try {
+    sec.config = deepMerge(DEFAULT_CONFIG, JSON.parse(document.getElementById(`config-${sectionId}`).value));
+    sec.config.__modified = true;
+    renderAll();
+  } catch (e) {
+    alert('Invalid config JSON: ' + e.message);
+  }
+}
+function exportGroupJSON(id) { downloadJSON(`${id}_figure_group.json`, getSection(id)); }
+function exportPanelJSON(sectionId, panelId) { downloadJSON(`${panelId}.json`, getPanel(sectionId,panelId)); }
+function applyPanelJSON(sectionId, panelId) {
+  const sec = getSection(sectionId);
+  const idx = sec.panels.findIndex(p => p.id === panelId);
+  try {
+    const edited = JSON.parse(document.getElementById(`json-${panelId}`).value);
+    markPanelModified(edited);
+    sec.panels[idx] = edited;
+    renderAll();
+  } catch (e) {
+    alert('Invalid panel JSON: ' + e.message);
+  }
+}
+function markPanelModified(p) {
+  p.provenance = 'modified';
+  if (p.series) p.series.forEach(s => { s.provenance = 'modified'; (s.points||[]).forEach(pt => pt.provenance = 'modified'); });
+}
+function exportPanelSVG(panelId) {
+  const svg = document.querySelector(`#svgbox-${panelId} svg`);
+  if (!svg) return;
+  downloadText(`${panelId}.svg`, new XMLSerializer().serializeToString(svg), 'image/svg+xml');
+}
+function exportGroupSVG(sectionId) {
+  const sec = getSection(sectionId), cfg = sec.config, layout = cfg.layout;
+  const cols = Number(layout.columns || 2), gap = Number(layout.gap || 16), pw = Number(layout.panelWidth || 360), ph = Number(layout.panelHeight || 260);
+  const rows = Math.ceil(sec.panels.length / cols);
+  const titleH = 34, legendH = (layout.sharedLegend && layout.legendPosition !== 'none') ? 32 : 0;
+  const w = cols * pw + (cols - 1) * gap;
+  const h = titleH + rows * ph + Math.max(0, rows - 1) * gap + legendH;
+  let out = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><rect width="100%" height="100%" fill="white"/>`;
+  out += `<text x="${w/2}" y="22" text-anchor="middle" font-family="Arial" font-size="16">${escapeXML(sec.title)}</text>`;
+  sec.panels.forEach((p, i) => {
+    const svg = document.querySelector(`#svgbox-${p.id} svg`);
+    if (!svg) return;
+    const inner = svg.innerHTML;
+    const col = i % cols, row = Math.floor(i / cols), x = col * (pw + gap), y = titleH + row * (ph + gap);
+    out += `<g transform="translate(${x},${y})">${inner}</g>`;
+  });
+  if (layout.sharedLegend && layout.legendPosition !== 'none') {
+    const y = h - 12;
+    getMethodOrder(sec).forEach((m, i) => {
+      const x = 12 + i * 112;
+      out += `<line x1="${x}" y1="${y}" x2="${x+18}" y2="${y}" stroke="${colors[i % colors.length]}" stroke-width="3"/>`;
+      out += `<text x="${x+24}" y="${y+4}" font-family="Arial" font-size="12">${escapeXML(m)}</text>`;
+    });
+  }
+  out += '</svg>';
+  downloadText(`${sectionId}_figure_group.svg`, out, 'image/svg+xml');
+}
+
+function computeDomain(section, panel, axis) {
+  const cfg = section.config, style = cfg.style;
+  const sourcePanels = (axis === 'x' && cfg.axes.shareX) || (axis === 'y' && cfg.axes.shareY) ? section.panels : [panel];
+  let vals = [];
+  sourcePanels.forEach(p => (p.series || []).forEach(s => (s.points || []).forEach(pt => {
+    if (axis === 'x') vals.push(Number(pt.x));
+    else {
+      vals.push(Number(pt.y));
+      if (style.showEnvelope && pt.std) { vals.push(Number(pt.y)+Number(pt.std)); vals.push(Number(pt.y)-Number(pt.std)); }
+    }
+  })));
+  vals = vals.filter(v => !Number.isNaN(v) && Number.isFinite(v));
+  if (!vals.length) return [0, 1];
+  let min = Math.min(...vals), max = Math.max(...vals);
+  if (min === max) { min -= 1; max += 1; }
+  if (axis === 'y') { const pad = (max - min) * 0.06; min -= pad; max += pad; }
+  return [min, max];
+}
+function drawPanel(sectionId, panelId) {
+  const sec = getSection(sectionId), p = getPanel(sectionId, panelId), box = document.getElementById(`svgbox-${panelId}`);
+  if (!box) return;
+  if (sec.panel_type === 'heatmap' || p.type === 'heatmap') box.innerHTML = drawHeatmap(p, sec);
+  else box.innerHTML = drawLinePanel(p, sec);
+}
+function drawLinePanel(p, section) {
+  const cfg = section.config, layout = cfg.layout, style = cfg.style, axes = cfg.axes;
+  const w = layout.panelWidth || 360, h = layout.panelHeight || 260, fs = style.fontSize || 12, tfs = style.titleFontSize || fs+2, marker = style.markerSize || 3, lw = style.lineWidth || 2;
+  const usePanelLegend = !(layout.sharedLegend) && layout.legendPosition !== 'none';
+  const ml = 54, mr = (usePanelLegend && layout.legendPosition === 'right') ? 118 : 22, mt = 34, mb = (usePanelLegend && layout.legendPosition === 'bottom') ? 58 : 42;
+  const [xmin, xmax] = computeDomain(section, p, 'x'), [ymin, ymax] = computeDomain(section, p, 'y');
+  const pw=w-ml-mr, ph=h-mt-mb;
+  const xmap=x=>ml + (Number(x)-xmin)/(xmax-xmin||1)*pw;
+  const ymap=y=>mt + (ymax-Number(y))/(ymax-ymin||1)*ph;
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">`;
+  svg += `<rect width="100%" height="100%" fill="white"/>`;
+  svg += `<text x="${w/2}" y="20" text-anchor="middle" font-size="${tfs}" font-family="Arial">${escapeXML(p.title)}</text>`;
+  if (style.showGrid) {
+    for(let i=0;i<5;i++){ const y=ymin+(ymax-ymin)*i/4; const py=ymap(y); svg+=`<line x1="${ml}" y1="${py}" x2="${w-mr}" y2="${py}" stroke="#e5e7eb"/>`; svg+=`<text x="${ml-8}" y="${py+4}" text-anchor="end" font-size="${fs-1}" font-family="Arial">${fmt(y)}</text>`; }
+  }
+  svg += `<line x1="${ml}" y1="${h-mb}" x2="${w-mr}" y2="${h-mb}" stroke="#111827"/>`;
+  svg += `<line x1="${ml}" y1="${mt}" x2="${ml}" y2="${h-mb}" stroke="#111827"/>`;
+  svg += `<text x="${ml+pw/2}" y="${h-8}" text-anchor="middle" font-size="${fs}" font-family="Arial">${escapeXML(p.xLabel || axes.xLabel || 'x')}</text>`;
+  svg += `<text transform="translate(14 ${mt+ph/2}) rotate(-90)" text-anchor="middle" font-size="${fs}" font-family="Arial">${escapeXML(p.yLabel || axes.yLabel || 'y')}</text>`;
+  (p.series||[]).forEach((s, si) => {
+    const col = methodColor(section, s.name || String(si));
+    const pts = s.points || [];
+    if (style.showEnvelope) {
+      const upper = pts.map(pt => `${xmap(pt.x)},${ymap(Number(pt.y)+(Number(pt.std)||0))}`).join(' ');
+      const lower = pts.slice().reverse().map(pt => `${xmap(pt.x)},${ymap(Number(pt.y)-(Number(pt.std)||0))}`).join(' ');
+      svg += `<polygon points="${upper} ${lower}" fill="${col}" opacity="0.10"/>`;
+    }
+    svg += `<polyline points="${pts.map(pt=>`${xmap(pt.x)},${ymap(pt.y)}`).join(' ')}" fill="none" stroke="${col}" stroke-width="${lw}"/>`;
+    pts.forEach(pt => {
+      svg += `<circle cx="${xmap(pt.x)}" cy="${ymap(pt.y)}" r="${marker}" fill="${col}"><title>${escapeXML(s.name)}: ${pt.y} [${pt.provenance||s.provenance||''}]</title></circle>`;
+      if (style.showValueLabels) svg += `<text x="${xmap(pt.x)+4}" y="${ymap(pt.y)-4}" font-size="${fs-2}" font-family="Arial">${fmt(pt.y)}</text>`;
+    });
+    if (usePanelLegend && layout.legendPosition === 'right') {
+      const ly = mt + 18*si + 8;
+      svg += `<line x1="${w-mr+18}" y1="${ly}" x2="${w-mr+34}" y2="${ly}" stroke="${col}" stroke-width="${lw}"/>`;
+      svg += `<text x="${w-mr+40}" y="${ly+4}" font-size="${fs}" font-family="Arial">${escapeXML(s.name)}</text>`;
+    } else if (usePanelLegend && layout.legendPosition === 'bottom') {
+      const lx = ml + 110*si; const ly = h-30;
+      svg += `<line x1="${lx}" y1="${ly}" x2="${lx+16}" y2="${ly}" stroke="${col}" stroke-width="${lw}"/>`;
+      svg += `<text x="${lx+22}" y="${ly+4}" font-size="${fs}" font-family="Arial">${escapeXML(s.name)}</text>`;
+    }
+  });
+  if (cfg.provenanceDisplay.showArtificialWatermark && panelHasProvenance(p, 'artificial')) svg += `<text x="${w-12}" y="${h-12}" text-anchor="end" font-size="${fs}" font-family="Arial" fill="#991b1b" opacity="0.55">ARTIFICIAL</text>`;
+  svg += '</svg>';
+  return svg;
+}
+function panelHasProvenance(p, prov) {
+  if (p.provenance === prov) return true;
+  return (p.series || []).some(s => s.provenance === prov || (s.points || []).some(pt => pt.provenance === prov));
+}
+function drawHeatmap(p, section) {
+  const layout = section.config.layout, style = section.config.style;
+  const w = layout.panelWidth || 360, h = layout.panelHeight || 300, fs = style.fontSize || 12;
+  const vals = p.values || [[]], rows = vals.length, cols = vals[0].length;
+  const ml=64, mt=42, cellW=(w-ml-22)/cols, cellH=(h-mt-42)/rows;
+  const flat = vals.flat().map(Number); const min=Math.min(...flat), max=Math.max(...flat);
+  const color = v => { const t=(Number(v)-min)/(max-min||1); const b=Math.round(245-150*t); const g=Math.round(245-130*t); return `rgb(${b},${g},255)`; };
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><rect width="100%" height="100%" fill="white"/>`;
+  svg += `<text x="${w/2}" y="22" text-anchor="middle" font-size="${style.titleFontSize || fs+2}" font-family="Arial">${escapeXML(p.title)}</text>`;
+  for(let r=0;r<rows;r++) {
+    svg += `<text x="${ml-8}" y="${mt+r*cellH+cellH/2+4}" text-anchor="end" font-size="${fs-1}" font-family="Arial">${escapeXML((p.yLabels||[])[r]||r)}</text>`;
+    for(let c=0;c<cols;c++) {
+      const x=ml+c*cellW, y=mt+r*cellH;
+      svg += `<rect class="heatmap-cell" x="${x}" y="${y}" width="${cellW}" height="${cellH}" fill="${color(vals[r][c])}"/>`;
+      svg += `<text x="${x+cellW/2}" y="${y+cellH/2+4}" text-anchor="middle" font-size="${fs-1}" font-family="Arial">${vals[r][c]}</text>`;
+    }
+  }
+  for(let c=0;c<cols;c++) svg += `<text x="${ml+c*cellW+cellW/2}" y="${mt-8}" text-anchor="middle" font-size="${fs-1}" font-family="Arial">${escapeXML((p.xLabels||[])[c]||c)}</text>`;
+  svg += '</svg>';
+  return svg;
+}
+
+function renderSection(sec) {
+  const isTable = sec.kind === 'table' || (!sec.panels && !sec.kind);
+  const hasArtificial = !isTable && (sec.panels || []).some(p => panelHasProvenance(p, 'artificial'));
+  const artificialWarning = hasArtificial ? '<div class="warning">⚠️ This figure group contains <b>artificial</b> placeholder data.</div>' : '';
+  return `<div class="section-panel" id="${sec.id}">
+    <h2>${sec.number ? sec.number + ' ' : ''}${htmlEscape(sec.title || sec.id)}</h2>
+    <div class="desc">${htmlEscape(sec.description || '')}</div>
+    ${artificialWarning}
+    ${isTable ? renderTable(sec) : renderPanelGroup(sec)}
+  </div>`;
+}
+function renderAll() {
+  state.sections = state.sections.map(normalizeSectionConfig);
+  setPage();
+  document.getElementById('sections').innerHTML = state.sections.map(renderSection).join('');
+}
+function exportHTMLSnapshot() {
+  const doc = document.documentElement.outerHTML.replace(/<script id="initial-data" type="application\/json">[\s\S]*?<\/script>/, `<script id="initial-data" type="application/json">${JSON.stringify(state).replace(/</g,'\\u003c')}<\/script>`);
+  downloadText('editable_review_snapshot.html', '<!doctype html>\n' + doc, 'text/html');
+}
+renderAll();
+</script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+% Auto-generated provisional table. Replace artificial/estimated entries before submission.
+\begin{table}[t]
+\centering
+\small
+\begin{tabular}{lccc}
+\toprule
+Failure mode & Frequency (\%) $\downarrow$ & Explanation & Mitigation \\
+\midrule
+latent module collapse\textcolor{gray}{\scriptsize[ARTIFICIAL]} & \underline{12.00}\textcolor{gray}{\scriptsize[ARTIFICIAL]} & regularization too strong\textcolor{gray}{\scriptsize[ARTIFICIAL]} & reduce lambda\_TRACE or add warmup\textcolor{gray}{\scriptsize[ARTIFICIAL]} \\
+poor long-horizon rollout\textcolor{gray}{\scriptsize[ARTIFICIAL]} & 18.00\textcolor{gray}{\scriptsize[ARTIFICIAL]} & world-model compounding error\textcolor{gray}{\scriptsize[ARTIFICIAL]} & shorter imagination horizon or uncertainty penalty\textcolor{gray}{\scriptsize[ARTIFICIAL]} \\
+sparse reward sensitivity\textcolor{gray}{\scriptsize[ARTIFICIAL]} & \textbf{9.00}\textcolor{gray}{\scriptsize[ARTIFICIAL]} & weak early transition signal\textcolor{gray}{\scriptsize[ARTIFICIAL]} & pretraining or reward-balanced replay\textcolor{gray}{\scriptsize[ARTIFICIAL]} \\
+\bottomrule
+\end{tabular}
+\caption{Case Study / Failure Cases. Provenance badges mark provisional entries.}
+\label{tab:failure_cases}
+\end{table}
