@@ -2,51 +2,41 @@
 
 `autosota-lite` is a local Codex plugin suite for ML paper reproduction and improvement workflows. It provides a set of specialized skills to automate research, resource management, and implementation tasks.
 
-## Available Skills
+## Skills Overview
 
-Codex plugin skills should stay as direct children of `plugins/autosota-lite/skills/`. Category organization is tracked in `plugins/autosota-lite/references/skill-map.md`; nested category folders under `skills/` are avoided because direct `SKILL.md` discovery is the stable plugin layout.
+See **[SKILLS_MAP.md](SKILLS_MAP.md)** for complete skill organization and quick lookup by task.
 
-### Pipeline & Orchestration
+All skills use the prefix system for easy discovery:
 
-**Core Lifecycle:**
-- **autosota-research-loop**: Coordinates the end-to-end research process with six modes (setup, baseline, ideation, iteration, audit, report). Ensures benchmark safety, metric freezing, and scientific validity throughout.
-- **autosota-optimization-pipeline**: Post-baseline iteration orchestrator integrating generated ideas, human feedback, domain knowledge, code reimplementation, result logging, notifications, and publishing workflows.
-- **autosota-agent-scheduler**: General job scheduling, lifecycle management, and process orchestration for long-running experiments.
-- **autosota-agent-monitor**: Long-running experiment supervision with deadlock detection, phase-aware tracking, and pathological stalling intervention.
-- **autosota-agent-monitor-scheduler**: Combined monitoring and scheduling for persistent context management, execution reset recovery, and iterative optimization (Normal vs Leap paths).
+```
+sota-*          AutoSOTA core (reproduce, improve, iterate)
+steer-*         Human steering & guidance  
+paper-*         Writing, analysis, results
+optimize-*      Code & iteration optimization
+util-*          Infrastructure & utilities
+```
 
-**Research Context & Governance:**
-- **autosota-agent-resource**: Paper-to-repository grounding that maps paper assets, repositories, datasets, checkpoints, and research dependencies.
-- **autosota-agent-objective**: Research objective construction, rubric definition, and success metrics refinement.
-- **autosota-agent-supervisor**: Scientific validity enforcement, benchmark red-line governance, and experimental integrity auditing.
+### Quick Examples
 
-### Code Reimplementation & Debugging
+**Reproduce & improve a paper:**
+```bash
+sota-collect-resources          # Find papers/datasets
+sota-reproduce-and-iterate      # Run the code
+sota-idea-generator             # Generate improvements
+sota-iterate-and-improve        # Implement changes
+paper-writer                    # Write findings
+util-notifier                   # Notify team
+```
 
-- **autosota-reimplementation**: Automated code rewriting and porting to CleanRL or JAX styles, producing compact and comparable implementations.
-- **autosota-agent-fix**: Runtime error diagnosis and repair, dependency resolution, and general debugging workflows.
-- **autosota-agent-init-fix**: Initialization, setup-phase configuration, and environment repair for dependency and version compatibility issues.
+**Speed up slow code:**
+```bash
+sota-optimize-iteration         # Profile training
+optimize-reimplementation       # Rewrite fast parts
+util-gpu-scheduler              # Add GPUs if needed
+paper-result-logger             # Track improvements
+```
 
-### Optimization & Ideation
-
-**Idea Generation & Refinement:**
-- **autosota-agent-ideator**: AI-driven generation of benchmark-safe improvement ideas and structured experiment design.
-- **autosota-human-idea-ingest**: Human idea ingestion, normalization, domain knowledge integration, and collaborative refinement.
-- **structural-entropy-proposal**: Structural Entropy methodology, encoding trees, hierarchies, and decoding-information workflows for advanced optimization.
-
-**Resource & Cost Management:**
-- **autosota-runtime-cost-estimator**: GPU cost estimation, hardware recommendations based on workload profiles, and Vast.ai rental cost prediction.
-
-### Experiment Results & Reporting
-
-**Results Management:**
-- **exp_result_skill**: Generates provisional Experiments/Results sections with configurable multi-panel figures, editable review workbench, and mandatory provenance tracking (experimented, public, estimated, artificial, modified, derived).
-- **autosota-result-logger**: Standardized result logging to WandB, GitHub Gists, and local repositories with credential-safe schema validation.
-
-### Writing & Publication
-
-**Rhetorical & Structural Analysis:**
-- **scientific-writing-reverse-engineering**: Model-paper reverse-engineering using Hilary Glasman-Deal methods for sentence-by-sentence rhetorical function analysis; generates writing maps without plagiarism.
-- **scientific_writing_reverse_engineering_skill**: Enhanced variant with interactive HTML review workbench, editable writing maps, figure rendering tools, and example outputs.
+**All skills:** `/workspace/autosota-lite/plugins/autosota-lite/skills/`
 
 **Paper & Report Generation:**
 - **autosota-paper-writer**: Manuscripts, human-readable reports, and research paper drafting grounded in experimental results and validated findings.
