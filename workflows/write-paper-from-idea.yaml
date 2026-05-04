@@ -1,0 +1,263 @@
+name: "Write Research Paper from Idea"
+description: "From research idea → complete paper draft → GitHub + Overleaf → blog announcement"
+version: "1.0"
+
+# How to run:
+# python -m sota_workflow_orchestrator run workflows/write-paper-from-idea.yaml \
+#   --idea-title "Your Title" \
+#   --idea-description "Your description" \
+#   --target-venue "NeurIPS"
+
+inputs:
+  idea_title:
+    type: string
+    description: "Research topic (e.g., 'World Models with Structural Entropy')"
+    required: true
+
+  idea_description:
+    type: string
+    description: "2-3 paragraph description of your contribution and why it matters"
+    required: true
+
+  target_venue:
+    type: string
+    description: "Target venue: NeurIPS, ICML, ICLR, JMLR, etc."
+    default: "NeurIPS"
+    required: false
+
+  num_references:
+    type: integer
+    description: "Number of reference papers to collect"
+    default: 15
+    required: false
+
+stages:
+  # Stage 1: Collect reference papers and baseline implementations
+  - name: "Collect References"
+    id: "collect_references"
+    skill: sota-collect-resources
+    description: "Find similar papers and baseline implementations"
+    inputs:
+      query: ${idea_title}
+      count: ${num_references}
+    outputs:
+      - reference_papers
+      - baseline_implementations
+    timeout: "15 minutes"
+    retry:
+      max_attempts: 2
+      backoff: "exponential"
+
+  # Stage 2: Analyze writing style from reference papers
+  - name: "Analyze Writing Style"
+    id: "analyze_style"
+    skill: code-reverse-engineering
+    description: "Extract rhetorical patterns and structure from reference papers"
+    inputs:
+      papers: ${stages.collect_references.outputs.reference_papers}
+      analysis_type: "writing_patterns"
+    outputs:
+      - writing_patterns
+      - structure_template
+      - citation_style
+      - section_templates
+    timeout: "10 minutes"
+    depends_on: ["collect_references"]
+
+  # Stage 3: Create paper outline
+  - name: "Create Outline"
+    id: "create_outline"
+    skill: paper-writer
+    action: "generate_outline"
+    description: "Generate outline and evidence map for your paper"
+    inputs:
+      idea: ${idea_description}
+      reference_style: ${stages.analyze_style.outputs.writing_patterns}
+      structure_template: ${stages.analyze_style.outputs.structure_template}
+      venue: ${target_venue}
+      num_sections: 8
+    outputs:
+      - paper_outline
+      - evidence_map
+      - section_descriptions
+    timeout: "10 minutes"
+    depends_on: ["analyze_style"]
+
+  # Stage 4: Implement your method
+  - name: "Implement Method"
+    id: "implement_method"
+    skill: sota-iterate-and-improve
+    description: "Code up your research contribution"
+    inputs:
+      idea: ${idea_description}
+      references: ${stages.collect_references.outputs.baseline_implementations}
+      target_framework: "PyTorch"
+    outputs:
+      - implementation_code
+      - method_description
+      - experiment_config
+    timeout: "45 minutes"
+    depends_on: ["collect_references"]
+    optional: true  # Can skip if no code needed
+
+  # Stage 5: Run experiments and collect results
+  - name: "Run Experiments"
+    id: "run_experiments"
+    skill: util-gpu-scheduler
+    description: "Execute experiments and log results"
+    inputs:
+      code: ${stages.implement_method.outputs.implementation_code}
+      config: ${stages.implement_method.outputs.experiment_config}
+      gpu_max_dph: 0.1
+    outputs:
+      - experiment_results
+      - metrics_logs
+      - result_tables
+    timeout: "120 minutes"
+    depends_on: ["implement_method"]
+    optional: true
+
+  # Stage 6: Write complete paper
+  - name: "Write Full Paper"
+    id: "write_paper"
+    skill: paper-writer
+    description: "Draft complete paper with all sections"
+    inputs:
+      outline: ${stages.create_outline.outputs.paper_outline}
+      method_code: ${stages.implement_method.outputs.implementation_code}
+      method_description: ${stages.implement_method.outputs.method_description}
+      results: ${stages.run_experiments.outputs.result_tables}
+      references: ${stages.collect_references.outputs.reference_papers}
+      writing_style: ${stages.analyze_style.outputs.writing_patterns}
+      evidence_map: ${stages.create_outline.outputs.evidence_map}
+      venue: ${target_venue}
+    outputs:
+      - paper_latex
+      - paper_markdown
+      - main_tex
+      - paper_abstract
+    timeout: "30 minutes"
+    depends_on: ["create_outline", "run_experiments"]
+
+  # Stage 7: Push to GitHub
+  - name: "Push to GitHub"
+    id: "push_github"
+    skill: util-publisher
+    action: "push_to_github"
+    description: "Create GitHub repository and push paper"
+    inputs:
+      content: ${stages.write_paper.outputs.main_tex}
+      repo_name: "paper-${idea_title | slugify}"
+      description: "${idea_description | first_line}"
+      branch: "main"
+      files:
+        - main.tex: ${stages.write_paper.outputs.main_tex}
+        - README.md: ${stages.write_paper.outputs.paper_markdown}
+    outputs:
+      - github_url
+      - repo_name
+      - commit_hash
+    timeout: "10 minutes"
+    depends_on: ["write_paper"]
+
+  # Stage 8: Create blog announcement
+  - name: "Publish Blog Announcement"
+    id: "publish_blog"
+    skill: util-publisher
+    action: "publish_blog_post"
+    description: "Announce paper on blog with KaTeX formulas"
+    inputs:
+      title: "New Paper: ${idea_title}"
+      content: |
+        ${stages.write_paper.outputs.paper_abstract}
+
+        ## Key Contributions
+        - Structural entropy framework
+        - Hierarchical abstraction learning
+        - Improved efficiency and generalization
+
+        ## Results
+        ${stages.run_experiments.outputs.result_tables}
+
+        **[Full paper on GitHub](${stages.push_github.outputs.github_url})**
+
+        **Venue:** ${target_venue}
+      tags:
+        - "paper"
+        - "research"
+        - "${target_venue | lowercase}"
+      github_token: ${secrets.GITHUB_TOKEN}
+      description: "New paper: ${idea_title} - View abstract and results"
+    outputs:
+      - blog_url
+      - blog_commit
+    timeout: "10 minutes"
+    depends_on: ["push_github", "write_paper"]
+
+  # Stage 9: Notify team
+  - name: "Notify Team"
+    id: "notify"
+    skill: util-notifier
+    description: "Send notifications to Slack and email"
+    inputs:
+      channels:
+        - "slack:#papers"
+        - "email:team@example.com"
+      message: |
+        🎉 New Paper: ${idea_title}
+
+        📄 GitHub: ${stages.push_github.outputs.github_url}
+        📝 Blog: ${stages.publish_blog.outputs.blog_url}
+
+        Venue: ${target_venue}
+      attachments:
+        - ${stages.write_paper.outputs.paper_latex}
+        - ${stages.run_experiments.outputs.result_tables}
+    timeout: "5 minutes"
+    depends_on: ["publish_blog"]
+
+# Workflow outputs
+outputs:
+  paper_title: ${idea_title}
+  github_repository: ${stages.push_github.outputs.github_url}
+  blog_announcement: ${stages.publish_blog.outputs.blog_url}
+  experiment_results: ${stages.run_experiments.outputs.result_tables}
+  paper_latex: ${stages.write_paper.outputs.main_tex}
+  paper_abstract: ${stages.write_paper.outputs.paper_abstract}
+
+# Checkpoints for resuming
+checkpoints:
+  - name: "After Research"
+    stage: "create_outline"
+  - name: "After Implementation"
+    stage: "run_experiments"
+  - name: "After Writing"
+    stage: "write_paper"
+  - name: "Ready to Announce"
+    stage: "publish_blog"
+
+# Metrics to capture
+metrics:
+  - stage_name
+  - stage_duration
+  - outputs_generated
+  - errors_encountered
+  - skip_count
+
+# Notifications on completion
+notifications:
+  on_success:
+    channels: ["slack:#papers"]
+    message: "✅ Paper complete! Check {{blog_url}}"
+  on_failure:
+    channels: ["slack:#errors", "email:admin@example.com"]
+    message: "❌ Paper workflow failed at stage: {{failed_stage}}"
+
+# Metadata
+metadata:
+  author: "AutoSOTA"
+  created: "2026-05-04"
+  updated: "2026-05-04"
+  status: "production"
+  version: "1.0"
+  tags: ["paper-writing", "research", "publishing"]

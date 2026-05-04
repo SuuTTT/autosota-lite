@@ -1,0 +1,339 @@
+name: "Beat SOTA: Optimize for Speed"
+description: "Reimplement published code to run faster, automatically compare original vs optimized"
+version: "1.0"
+
+# How to run:
+# python -m sota_workflow_orchestrator run workflows/beat-sota-speed.yaml \
+#   --paper-url "https://arxiv.org/abs/1707.06347" \
+#   --repo-url "https://github.com/openai/baselines" \
+#   --target-dimension "speed"
+
+inputs:
+  paper_url:
+    type: string
+    description: "arXiv link or direct paper URL"
+    required: true
+    example: "https://arxiv.org/abs/1707.06347"
+
+  repo_url:
+    type: string
+    description: "GitHub repository URL with original implementation"
+    required: true
+    example: "https://github.com/openai/baselines"
+
+  target_dimension:
+    type: string
+    description: "Optimization target: speed | memory | readability"
+    default: "speed"
+    enum: ["speed", "memory", "readability"]
+    required: false
+
+  speed_target:
+    type: string
+    description: "Goal improvement: e.g., '30% faster', '2x speedup', '10 sec/epoch'"
+    default: "30% faster"
+    required: false
+
+stages:
+  # Stage 1: Download and organize original code
+  - name: "Collect Original Resources"
+    id: "collect_original"
+    skill: sota-collect-resources
+    description: "Download paper PDF and source code"
+    inputs:
+      paper_url: ${paper_url}
+      repo_url: ${repo_url}
+    outputs:
+      - paper_pdf
+      - original_code
+      - official_results
+    timeout: "10 minutes"
+    retry:
+      max_attempts: 2
+
+  # Stage 2: Run baseline on original code
+  - name: "Baseline Test"
+    id: "baseline_test"
+    skill: util-gpu-scheduler
+    description: "Test original code and capture metrics"
+    inputs:
+      code: ${stages.collect_original.outputs.original_code}
+      metrics:
+        - speed_per_epoch
+        - memory_peak
+        - gpu_utilization
+        - cpu_utilization
+        - accuracy
+      runs: 3  # Average over 3 runs
+      max_dph: 0.1
+    outputs:
+      - baseline_metrics
+      - baseline_logs
+      - baseline_speed
+      - baseline_memory
+    timeout: "60 minutes"
+    depends_on: ["collect_original"]
+
+  # Stage 3: Reverse-engineer original code
+  - name: "Analyze Original Code"
+    id: "code_analysis"
+    skill: code-reverse-engineering
+    description: "Extract architecture, algorithms, optimization opportunities"
+    inputs:
+      code: ${stages.collect_original.outputs.original_code}
+      paper_pdf: ${stages.collect_original.outputs.paper_pdf}
+      focus: ["bottlenecks", "inefficiencies", "optimization_opportunities"]
+    outputs:
+      - code_map
+      - algorithm_pseudocode
+      - bottlenecks_identified
+      - optimization_plan
+      - implementation_recommendations
+    timeout: "15 minutes"
+    depends_on: ["collect_original"]
+
+  # Stage 4: Reimplement optimized version
+  - name: "Reimplement for Speed"
+    id: "reimplement"
+    skill: sota-iterate-and-improve
+    description: "Create optimized version targeting ${speed_target}"
+    inputs:
+      original_code: ${stages.collect_original.outputs.original_code}
+      optimization_plan: ${stages.code_analysis.outputs.optimization_plan}
+      bottlenecks: ${stages.code_analysis.outputs.bottlenecks_identified}
+      target_goal: ${speed_target}
+      constraints:
+        - "Maintain accuracy within ±1%"
+        - "Use PyTorch or JAX"
+        - "Minimize dependencies"
+    outputs:
+      - optimized_code
+      - optimization_notes
+      - changes_summary
+    timeout: "45 minutes"
+    depends_on: ["code_analysis"]
+
+  # Stage 5: Test optimized version
+  - name: "Test Optimized Code"
+    id: "optimized_test"
+    skill: util-gpu-scheduler
+    description: "Test optimized code with same metrics"
+    inputs:
+      code: ${stages.reimplement.outputs.optimized_code}
+      metrics:
+        - speed_per_epoch
+        - memory_peak
+        - gpu_utilization
+        - cpu_utilization
+        - accuracy
+      runs: 3
+      max_dph: 0.1
+    outputs:
+      - optimized_metrics
+      - optimized_logs
+      - optimized_speed
+      - optimized_memory
+    timeout: "60 minutes"
+    depends_on: ["reimplement"]
+
+  # Stage 6: Compare results
+  - name: "Compare and Analyze"
+    id: "compare_results"
+    skill: sota-compare-metrics
+    description: "Generate comparison table and analysis"
+    inputs:
+      original_metrics: ${stages.baseline_test.outputs.baseline_metrics}
+      optimized_metrics: ${stages.optimized_test.outputs.optimized_metrics}
+      original_code: ${stages.collect_original.outputs.original_code}
+      optimized_code: ${stages.reimplement.outputs.optimized_code}
+      dimensions:
+        - "performance"  # Accuracy and loss
+        - "speed"        # Wall-clock time
+        - "memory"       # Peak memory usage
+        - "readability"  # Code complexity, lines
+        - "deployment"   # Dependencies
+    outputs:
+      - comparison_table
+      - comparison_report
+      - improvement_summary
+      - metrics_json
+    timeout: "10 minutes"
+    depends_on: ["baseline_test", "optimized_test"]
+
+  # Stage 7: Generate code diff and documentation
+  - name: "Generate Documentation"
+    id: "generate_docs"
+    skill: code-reverse-engineering
+    action: "document_changes"
+    description: "Create documentation of changes made"
+    inputs:
+      original: ${stages.collect_original.outputs.original_code}
+      optimized: ${stages.reimplement.outputs.optimized_code}
+      changes: ${stages.reimplement.outputs.changes_summary}
+    outputs:
+      - code_diff
+      - change_documentation
+      - best_practices
+    timeout: "10 minutes"
+    depends_on: ["reimplement"]
+
+  # Stage 8: Publish results to blog
+  - name: "Publish Results"
+    id: "publish_blog"
+    skill: util-publisher
+    action: "publish_blog_post"
+    description: "Create blog post with comparison and code link"
+    inputs:
+      title: "Beat SOTA: ${repo_url | basename} optimizations"
+      content: |
+        # Optimizing ${repo_url | basename} for ${target_dimension}
+
+        ## Summary
+
+        We reimplemented the original code from [${paper_url}](${paper_url}) to be **{{speed_improvement}}% faster** while maintaining accuracy.
+
+        ## Results
+
+        | Metric | Original | Optimized | Improvement |
+        |--------|----------|-----------|-------------|
+        | Speed (sec/epoch) | {{baseline_speed}} | {{optimized_speed}} | **{{speed_improvement}}%** |
+        | Memory (MB) | {{baseline_memory}} | {{optimized_memory}} | {{memory_improvement}} |
+        | Accuracy | {{baseline_accuracy}}% | {{optimized_accuracy}}% | {{accuracy_diff}} |
+        | Code Lines | {{original_lines}} | {{optimized_lines}} | {{code_reduction}} |
+
+        ## Key Optimizations
+
+        {{optimization_notes}}
+
+        ## Full Comparison
+
+        {{comparison_report}}
+
+        ## Code
+
+        [View optimized implementation on GitHub]({{code_github_url}})
+
+      tags:
+        - "sota"
+        - "optimization"
+        - "${target_dimension}"
+        - "performance"
+      github_token: ${secrets.GITHUB_TOKEN}
+      description: "Beat SOTA: optimized {{repo_url | basename}} for {{target_dimension}}"
+    outputs:
+      - blog_url
+      - blog_commit
+    timeout: "10 minutes"
+    depends_on: ["compare_results"]
+
+  # Stage 9: Create GitHub repository
+  - name: "Publish Code"
+    id: "publish_code"
+    skill: util-publisher
+    action: "push_to_github"
+    description: "Push optimized code to GitHub"
+    inputs:
+      repo_name: "beat-sota-${repo_url | basename | slugify}"
+      description: "Optimized ${target_dimension} for ${repo_url | basename}"
+      branch: "main"
+      files:
+        - optimized_code: ${stages.reimplement.outputs.optimized_code}
+        - comparison.json: ${stages.compare_results.outputs.metrics_json}
+        - changes.md: ${stages.generate_docs.outputs.change_documentation}
+    outputs:
+      - code_repo_url
+      - code_commit
+    timeout: "10 minutes"
+    depends_on: ["reimplement"]
+
+  # Stage 10: Notify team
+  - name: "Notify Team"
+    id: "notify"
+    skill: util-notifier
+    description: "Send notifications with results"
+    inputs:
+      channels:
+        - "slack:#sota-wins"
+        - "email:team@example.com"
+      message: |
+        🚀 Beat SOTA: {{speed_improvement}}% faster!
+
+        **Paper:** {{paper_url}}
+        **Original:** {{repo_url}}
+
+        **Results:**
+        - Speed: {{speed_improvement}}% faster ({{baseline_speed}} → {{optimized_speed}} sec/epoch)
+        - Memory: {{memory_improvement}} ({{baseline_memory}} → {{optimized_memory}} MB)
+        - Accuracy: ✓ Maintained ({{accuracy_diff}})
+
+        📝 Blog post: {{blog_url}}
+        💻 Code: {{code_repo_url}}
+      attachments:
+        - ${stages.compare_results.outputs.comparison_table}
+        - ${stages.generate_docs.outputs.code_diff}
+    timeout: "5 minutes"
+    depends_on: ["publish_blog", "publish_code"]
+
+# Workflow outputs
+outputs:
+  comparison_report: ${stages.compare_results.outputs.comparison_report}
+  blog_announcement: ${stages.publish_blog.outputs.blog_url}
+  optimized_code: ${stages.reimplement.outputs.optimized_code}
+  speed_improvement: ${stages.compare_results.outputs.improvement_summary.speed}
+  memory_improvement: ${stages.compare_results.outputs.improvement_summary.memory}
+  code_repository: ${stages.publish_code.outputs.code_repo_url}
+
+# Checkpoints for resuming
+checkpoints:
+  - name: "After Baseline"
+    stage: "baseline_test"
+  - name: "After Analysis"
+    stage: "code_analysis"
+  - name: "After Reimplementation"
+    stage: "reimplement"
+  - name: "Ready to Publish"
+    stage: "compare_results"
+
+# Metrics captured at each stage
+metrics:
+  - baseline_speed
+  - optimized_speed
+  - speed_improvement_percent
+  - baseline_memory
+  - optimized_memory
+  - memory_improvement_percent
+  - accuracy_match
+  - code_quality_improvement
+  - total_duration
+
+# Error handling
+error_handling:
+  on_accuracy_mismatch:
+    condition: "accuracy_diff > 1%"
+    action: "pause"
+    message: "Accuracy degraded beyond threshold (>1%). Review changes and resume."
+
+  on_test_failure:
+    condition: "optimized_test.failed"
+    action: "retry"
+    max_retries: 2
+    backoff: "exponential"
+
+# Notifications on completion
+notifications:
+  on_success:
+    channels: ["slack:#sota-wins"]
+    message: "✅ Beat SOTA complete! {{speed_improvement}}% faster. Details: {{blog_url}}"
+
+  on_failure:
+    channels: ["slack:#errors"]
+    message: "❌ Beat SOTA workflow failed at {{failed_stage}}: {{error_message}}"
+
+# Metadata
+metadata:
+  author: "AutoSOTA"
+  created: "2026-05-04"
+  updated: "2026-05-04"
+  status: "production"
+  version: "1.0"
+  tags: ["optimization", "beat-sota", "performance", "code-improvement"]

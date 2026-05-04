@@ -87,7 +87,7 @@ Deployment:
 
 ### 2. Write Paper from Idea
 
-**Goal:** From initial idea + reference papers to complete paper draft with experiments
+**Goal:** From initial idea + reference papers to complete paper draft with experiments (+ auto-publish to Overleaf + blog)
 
 **Pipeline:**
 ```
@@ -120,10 +120,20 @@ Deployment:
    Compare your results vs baselines
    Create result tables + figures
    
-9. util-notifier
-   Post draft + results to Slack
+9. (NEW) Publish to Overleaf
+   Auto-create Overleaf project
+   Upload LaTeX + figures
+   Generate shareable link
    
-Output: Paper draft + experiment results
+10. (NEW) Publish to Blog
+    Auto-create blog post announcement
+    Push to GitHub blog with KaTeX formulas
+    Link to Overleaf project
+   
+11. util-notifier
+    Post draft + Overleaf link + blog link to Slack
+   
+Output: Paper draft + Overleaf project + blog post + experiment results
 ```
 
 **Outputs:**
@@ -200,14 +210,78 @@ stages:
       - memory_reduction
       - code_quality_score
 
+  - name: "Publish Blog Announcement"
+    skill: util-github-git-push
+    inputs:
+      title: "Beat SOTA: {{project_name}} Reimplementation"
+      content: |
+        {{comparison_summary}}
+        
+        **Results:**
+        - Speed: {{speed_improvement}}% faster
+        - Memory: {{memory_reduction}}% less
+        - Code: {{code_quality_improvement}}
+        
+        See [full comparison]({{comparison_report_link}})
+      tags: ["sota", "optimization", "{{target_dimension}}"]
+      github_token: ${secrets.GITHUB_TOKEN}
+      description: "Beat SOTA on {{target_dimension}}: {{improvement_summary}}"
+    timeout: 5 minutes
+  
   - name: "Notify"
     skill: util-notifier
     inputs:
-      message: ${stages.5.outputs.improvement_summary}
-      comparison: ${stages.5.outputs.comparison_table}
+      message: ${stages.publish_blog.outputs.message}
       channels:
         - slack: "#sota-improvements"
         - email: "team@example.com"
+      attachments:
+        - ${stages.test.outputs.comparison_table}
+        - ${stages.publish_blog.outputs.blog_url}
+```
+
+---
+
+## Auto-Publishing to GitHub & Overleaf
+
+### New Skill: util-github-git-push
+
+The workflow orchestrator now includes automatic publishing:
+
+**Publish to GitHub Blog:**
+```yaml
+- id: publish_blog
+  name: "Publish to Blog"
+  skill: util-github-git-push
+  action: publish_blog_post
+  inputs:
+    title: ${stage_write.outputs.paper_title}
+    content: ${stage_write.outputs.blog_markdown}
+    tags: ["paper", "research", "${venue}"]
+    github_token: ${secrets.GITHUB_TOKEN}
+    blog_repo: "https://github.com/SuuTTT/suuttt.github.io.git"
+    description: "Paper draft with KaTeX formulas and results"
+  outputs:
+    - blog_url
+    - commit_hash
+  timeout: 5 minutes
+```
+
+**Publish to Overleaf:**
+```yaml
+- id: publish_overleaf
+  name: "Publish to Overleaf"
+  skill: util-github-git-push
+  action: publish_paper_to_overleaf
+  inputs:
+    title: ${stage_write.outputs.paper_title}
+    content: ${stage_write.outputs.paper_latex}
+    overleaf_token: ${secrets.OVERLEAF_API_TOKEN}
+    paper_type: "arxiv"  # or "conference", "workshop"
+  outputs:
+    - overleaf_project_id
+    - overleaf_project_url
+  timeout: 5 minutes
 ```
 
 ---
@@ -353,9 +427,9 @@ workflow.run()
 # Output: "Reduced code by 87%, added type hints, 3 deps vs 12"
 ```
 
-### Case 4: Write Paper from Idea
+### Case 4: Write Paper from Idea (with Auto-Publishing)
 
-Start with idea, end with draft paper.
+Start with idea, end with published paper (Overleaf + blog).
 
 ```python
 workflow = WorkflowOrchestrator("write_paper_from_idea")
@@ -367,9 +441,25 @@ workflow.configure({
     ],
     "target_venue": "NeurIPS",
     "implement_method": True,  # code it up
+    "publish_to_overleaf": True,  # NEW: auto-create Overleaf project
+    "publish_to_blog": True,      # NEW: auto-push to GitHub blog
 })
 workflow.run()
-# Output: paper draft + experiment results
+# Output: paper draft + Overleaf project + blog post + Slack notification
+```
+
+**Workflow auto-publishes:**
+1. ✅ Paper draft to Overleaf (LaTeX format)
+2. ✅ Blog announcement to GitHub with KaTeX formulas
+3. ✅ Slack notification with links to both
+
+**Links sent to Slack:**
+```
+📄 New Paper: "Combine PPO with Entropy Regularization"
+  
+Overleaf:    https://www.overleaf.com/project/abcd1234
+Blog:        https://sudingli.com/posts/2026-05-03-combine-ppo-entropy
+GitHub:      https://github.com/SuuTTT/suuttt.github.io/blob/master/content/projects/2026-05-03-...md
 ```
 
 ---
@@ -553,6 +643,204 @@ success_criteria:
   - accuracy_preserved: ">=99%"  # 1% drop is OK
   - speed_improved: ">=1.2x"     # must be faster
   - code_cleaner: "true"         # fewer lines + type hints
+
+  - id: publish_blog
+    name: "Publish Blog Announcement"
+    skill: util-github-git-push
+    inputs:
+      title: "Beat SOTA: {{improvement_title}}"
+      content: |
+        # {{improvement_title}}
+        
+        We reimplemented {{original_paper}} with improved performance:
+        
+        $$\text{Speedup} = \frac{T_{\text{original}}}{T_{\text{reimplemented}}} = {{speed_improvement}}x$$
+        
+        **Metrics:**
+        - Accuracy: {{baseline_accuracy}}% → {{reimplemented_accuracy}}% ({{accuracy_delta}})
+        - Speed: {{baseline_speed}}s/epoch → {{reimplemented_speed}}s/epoch ({{speed_improvement}}x faster)
+        - Memory: {{baseline_memory}}MB → {{reimplemented_memory}}MB ({{memory_reduction}}% less)
+        - Code: {{baseline_lines}} lines → {{reimplemented_lines}} lines ({{code_reduction}}% reduction)
+        
+        [View full comparison]({{comparison_report_link}})
+      tags: ["sota", "optimization", "reimplement"]
+      github_token: ${secrets.GITHUB_TOKEN}
+      description: "Beat SOTA: {{improvement_summary}}"
+    timeout: 5 minutes
+  
+  - id: notify
+    name: "Notify Team"
+    skill: util-notifier
+    inputs:
+      message: "✅ Beat SOTA: {{improvement_title}}\n\n{{improvement_summary}}\n\nBlog: {{publish_blog.outputs.blog_url}}"
+      channels:
+        - slack: "#sota"
+        - email: "team@example.com"
+      attachments:
+        - ${test.outputs.comparison_table}
+        - ${publish_blog.outputs.blog_url}
+```
+
+---
+
+## Complete Example: Write Paper from Idea with Auto-Publishing
+
+```yaml
+name: "Write Paper + Publish to Overleaf + Blog"
+description: "From idea to complete paper (Overleaf) with blog announcement"
+
+config:
+  idea: "Combine PPO with entropy regularization"
+  reference_papers:
+    - "https://arxiv.org/abs/1707.06347"  # PPO
+    - "https://arxiv.org/abs/1805.00909"  # Maximum Entropy RL
+  target_venue: "NeurIPS"
+  implement_method: true
+  publish_overleaf: true
+  publish_blog: true
+
+stages:
+  - id: ingest_idea
+    name: "Ingest Idea"
+    skill: steer-human-ingest
+    inputs:
+      idea: ${config.idea}
+      references: ${config.reference_papers}
+    outputs:
+      - idea_structured
+      - key_concepts
+
+  - id: collect
+    name: "Collect Resources"
+    skill: sota-collect-resources
+    inputs:
+      idea: ${ingest_idea.outputs.idea_structured}
+      references: ${config.reference_papers}
+    outputs:
+      - reference_papers_pdf
+      - implementation_baselines
+
+  - id: analyze_papers
+    name: "Analyze Writing Style"
+    skill: paper-reverse-engineering
+    inputs:
+      papers: ${collect.outputs.reference_papers_pdf}
+    outputs:
+      - writing_models
+      - rhetorical_patterns
+
+  - id: write_structure
+    name: "Write Structure"
+    inputs:
+      idea: ${ingest_idea.outputs.idea_structured}
+      writing_models: ${analyze_papers.outputs.writing_models}
+    outputs:
+      - outline
+      - evidence_map
+
+  - id: implement
+    name: "Implement Method"
+    condition: ${config.implement_method}
+    skill: sota-iterate-and-improve
+    inputs:
+      idea: ${ingest_idea.outputs.idea_structured}
+      baselines: ${collect.outputs.implementation_baselines}
+    outputs:
+      - implementation_code
+      - method_description
+
+  - id: log_results
+    name: "Log Experiment Results"
+    skill: paper-result-logger
+    inputs:
+      implementation: ${implement.outputs.implementation_code}
+      baselines: ${collect.outputs.implementation_baselines}
+    outputs:
+      - results_metrics
+      - result_figures
+      - result_tables
+
+  - id: write_paper
+    name: "Write Paper Draft"
+    skill: paper-writer
+    inputs:
+      outline: ${write_structure.outputs.outline}
+      writing_models: ${analyze_papers.outputs.writing_models}
+      method_description: ${implement.outputs.method_description}
+      results: ${log_results.outputs.results_metrics}
+      figures: ${log_results.outputs.result_figures}
+    outputs:
+      - paper_markdown
+      - paper_latex
+      - paper_bib
+
+  - id: publish_overleaf
+    name: "Publish to Overleaf"
+    condition: ${config.publish_overleaf}
+    skill: util-github-git-push
+    action: publish_paper_to_overleaf
+    inputs:
+      title: ${write_paper.outputs.paper_title}
+      content: ${write_paper.outputs.paper_latex}
+      overleaf_token: ${secrets.OVERLEAF_API_TOKEN}
+      paper_type: "arxiv"
+    outputs:
+      - overleaf_project_id
+      - overleaf_project_url
+
+  - id: publish_blog
+    name: "Publish Blog Announcement"
+    condition: ${config.publish_blog}
+    skill: util-github-git-push
+    action: publish_blog_post
+    inputs:
+      title: "New Paper: {{paper_title}}"
+      content: |
+        {{paper_abstract}}
+        
+        **Key Contributions:**
+        {{key_contributions}}
+        
+        **Results:**
+        {{result_summary}}
+        
+        [Read full paper on Overleaf]({{overleaf_project_url}})
+        
+        **Formulas:**
+        {{key_equations}}
+      tags: ["paper", "research", "${config.target_venue}"]
+      github_token: ${secrets.GITHUB_TOKEN}
+      blog_repo: "https://github.com/SuuTTT/suuttt.github.io.git"
+      description: ${write_paper.outputs.paper_abstract}
+    outputs:
+      - blog_url
+      - commit_hash
+
+  - id: notify
+    name: "Notify Team"
+    skill: util-notifier
+    inputs:
+      message: |
+        📄 New Paper Published!
+        
+        **Title:** {{write_paper.outputs.paper_title}}
+        **Venue:** ${config.target_venue}
+        
+        📋 Overleaf: {{publish_overleaf.outputs.overleaf_project_url}}
+        📝 Blog: {{publish_blog.outputs.blog_url}}
+        💾 Code: {{implement.outputs.implementation_code}}
+      channels:
+        - slack: "#papers"
+        - email: "team@example.com"
+      attachments:
+        - ${write_paper.outputs.paper_markdown}
+        - ${log_results.outputs.result_figures}
+
+success_criteria:
+  - paper_complete: "true"
+  - overleaf_published: "{{config.publish_overleaf}}"
+  - blog_published: "{{config.publish_blog}}"
+  - results_included: "true"
 ```
 
 ---

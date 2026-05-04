@@ -15,7 +15,162 @@ Use this skill when the user wants a live Vast.ai scheduler that can estimate co
 - If the user already pasted a key into chat, recommend rotating it in Vast.ai and setting the replacement locally.
 - Prefer on-demand instances for non-disposable training. Use interruptible only when the user accepts preemption risk.
 - Default country exclusions are `CN,US`; keep them unless the user explicitly changes them.
+- Default cost limit: avoid instances costing more than **$0.1/hour** (set `--max-dph 0.1`). Override only for specific use cases.
 - Destroying an instance deletes its data. Make sure the job uploads or persists anything important before cleanup.
+
+## Cost Control (NEW)
+
+**Default cost filter: `--max-dph 0.1` (avoid >$0.1/hour instances)**
+
+The scheduler now automatically filters out expensive instances. To use costlier hardware:
+
+```bash
+python3 vastai_scheduler.py launch \
+  --max-dph 0.15 \  # allow up to $0.15/hour
+  --runtime-hours 4 \
+  --job-cmd 'python train.py' \
+  --yes
+```
+
+Cost is estimated as:
+```
+total_cost_usd = runtime_hours * dph_total + upload_gb * inet_up_cost + download_gb * inet_down_cost
+```
+
+View estimated costs before launching:
+```bash
+python3 vastai_scheduler.py estimate \
+  --runtime-hours 4 \
+  --disk-gb 80 \
+  --max-dph 0.1
+```
+
+## True Run Estimator (NEW)
+
+For long-running tasks (>4 hours), profile actual performance **before** committing full compute.
+
+**Workflow:**
+```
+1. Run short test (30 steps/minutes)
+   → measure: speed, GPU util, memory, CPU util
+   
+2. Run medium test (40 steps/minutes)
+   → validate: consistency, scaling
+   
+3. Run long test (50 steps/minutes)
+   → estimate: actual time for full run
+   
+4. Extrapolate to full duration
+   → decide: proceed with full run or optimize code
+```
+
+**Usage:**
+
+```bash
+# Profile before full run
+python3 vastai_scheduler.py profile \
+  --runtime-hours 4 \  # target runtime
+  --job-cmd 'python train.py --steps 10000' \
+  --test-steps 30,40,50 \  # short test runs (in minutes)
+  --metrics-to-capture speed,gpu_util,memory,cpu_util \
+  --max-dph 0.1 \
+  --yes
+```
+
+**Output example:**
+
+```
+═══════════════════════════════════════════════════════════════
+True Run Estimator: PPO Training (target: 4 hours)
+═══════════════════════════════════════════════════════════════
+
+TEST 1: 30 minutes
+  Speed:      1200 steps/min
+  GPU Util:   84%
+  Memory:     6.2 GB / 16 GB (39%)
+  CPU Util:   45%
+  Cost:       $0.05
+
+TEST 2: 40 minutes  
+  Speed:      1195 steps/min (consistent ✓)
+  GPU Util:   83%
+  Memory:     6.3 GB / 16 GB (39%)
+  CPU Util:   46%
+  Cost:       $0.07
+
+TEST 3: 50 minutes
+  Speed:      1198 steps/min (avg: 1198)
+  GPU Util:   83%
+  Memory:     6.2 GB / 16 GB (39%)
+  CPU Util:   45%
+  Cost:       $0.08
+
+═══════════════════════════════════════════════════════════════
+EXTRAPOLATION TO FULL RUN (4 hours = 240 minutes)
+═══════════════════════════════════════════════════════════════
+
+Avg Speed:      1198 steps/min
+Estimated Time: 240 min / 1 = 240 min ✓ (matches target)
+Total Steps:    287,520
+Peak Memory:    6.3 GB (safe margin: 9.7 GB available)
+Avg GPU Util:   83% (excellent)
+Avg CPU Util:   45%
+
+ESTIMATED COST:  $0.24 (4 hours × $0.06/hour)
+
+RECOMMENDATION:
+✅ Proceed with full run
+   • Speed is consistent (no degradation)
+   • Memory is stable (no leaks)
+   • GPU utilization excellent
+   • Cost reasonable ($0.06/hour)
+
+Next: python3 vastai_scheduler.py launch \
+  --full-run true \
+  --estimated-cost 0.24 \
+  --yes
+```
+
+**Metrics captured:**
+
+```yaml
+Performance:
+  - Steps per minute (throughput)
+  - Convergence rate
+  - Time per epoch/iteration
+
+Hardware:
+  - GPU utilization (%)
+  - GPU memory usage (GB)
+  - GPU temperature (°C)
+  - CPU utilization (%)
+  - CPU memory usage (GB)
+
+Network:
+  - Data upload speed (MB/s)
+  - Data download speed (MB/s)
+  - Network packets (if applicable)
+
+Cost:
+  - Cumulative cost per test
+  - Cost per step / cost per hour
+  - Extrapolated full-run cost
+```
+
+**Advanced: Custom metrics**
+
+```bash
+python3 vastai_scheduler.py profile \
+  --runtime-hours 4 \
+  --job-cmd 'python train.py --steps 10000' \
+  --test-steps 30,40,50 \
+  --custom-metrics 'loss,accuracy,validation_loss' \
+  --metrics-collection-interval 1.0 \  # collect every 1 sec
+  --max-dph 0.1 \
+  --yes
+```
+
+This captures your application-specific metrics alongside system metrics.
 
 ## API Key Setup
 
@@ -214,6 +369,73 @@ python3 /workspace/autosota-lite/plugins/autosota-lite/skills/autosota-vastai-sc
 
 Interruptible launches can create stopped partial contracts when the bid is not immediately scheduled. The script destroys partial contracts if Vast.ai returns `success: false` with `new_contract`.
 
+## New: Cost-Optimized + Profiled Launch Examples
+
+**Safe cost-optimized launch (stay under $0.1/hour):**
+
+```bash
+python3 vastai_scheduler.py launch \
+  --runtime-hours 4 \
+  --disk-gb 80 \
+  --gpu "RTX 4090,RTX 3090,RTX 4080" \
+  --min-gpu-ram-gb 20 \
+  --max-dph 0.1 \  # avoid expensive instances
+  --job-cmd 'python train.py --steps 100000' \
+  --label cost-optimized-training \
+  --yes
+```
+
+**Profile before full run (test + extrapolate):**
+
+```bash
+python3 vastai_scheduler.py profile \
+  --runtime-hours 4 \
+  --disk-gb 80 \
+  --gpu "RTX 4090,RTX 3090" \
+  --min-gpu-ram-gb 20 \
+  --max-dph 0.1 \
+  --job-cmd 'python train.py --steps 100000' \
+  --test-steps 30,40,50 \  # 3 short runs: 30, 40, 50 minutes
+  --metrics-to-capture speed,gpu_util,memory,cpu_util \
+  --label profile-before-training \
+  --yes
+```
+
+Profile output shows:
+- ✓ How long actual full run will take
+- ✓ Actual GPU/memory/CPU utilization
+- ✓ Estimated total cost
+- ✓ Recommendation (proceed or optimize code)
+
+**Profile + auto-launch if good:**
+
+```bash
+python3 vastai_scheduler.py profile \
+  --runtime-hours 4 \
+  --job-cmd 'python train.py --steps 100000' \
+  --test-steps 30,40,50 \
+  --max-dph 0.1 \
+  --full-run true \  # auto-launch full job if profile looks good
+  --estimated-cost 0.24 \  # validate against this budget
+  --yes
+```
+
+**Advanced: profile with custom metrics**
+
+```bash
+python3 vastai_scheduler.py profile \
+  --runtime-hours 4 \
+  --job-cmd 'python train.py --steps 100000' \
+  --test-steps 30,40,50 \
+  --metrics-to-capture speed,gpu_util,memory,cpu_util \
+  --custom-metrics 'loss,accuracy,validation_loss' \
+  --metrics-collection-interval 1.0 \  # sample every 1 second
+  --max-dph 0.1 \
+  --yes
+```
+
+This captures both system metrics (speed, GPU util) and application metrics (loss, accuracy) from your training script output.
+
 ## Cost Model
 
 The scheduler estimates:
@@ -226,10 +448,23 @@ total_usd = runtime_hours * dph_total + upload_gb * inet_up_cost + download_gb *
 
 ## Important Flags
 
-- `--avoid-countries CN,US`: country-code denylist; default avoids China and the United States.
+### Cost Control (NEW)
+- `--max-dph 0.1`: **maximum hourly cost in USD** (default: 0.1 = avoid >$0.1/hour instances) ⭐
 - `--max-storage-cost 0.20`: maximum storage price in USD/GB/month.
 - `--max-inet-up-cost 0.02`: maximum upload price in USD/GB.
 - `--max-inet-down-cost 0.02`: maximum download price in USD/GB.
+
+### True Run Estimator (NEW)
+- `--profile true`: run short test series before full job (default: false)
+- `--test-steps 30,40,50`: duration of each test in minutes (default: 30,40,50)
+- `--metrics-to-capture speed,gpu_util,memory,cpu_util`: which metrics to collect (default: all)
+- `--metrics-collection-interval 1.0`: interval in seconds between metric captures (default: 1.0)
+- `--custom-metrics 'loss,accuracy'`: capture application-specific metrics (optional)
+- `--estimated-cost 0.24`: optional cost budget to validate profiling estimate
+- `--full-run true`: launch actual job after profiling (default: false)
+
+### General
+- `--avoid-countries CN,US`: country-code denylist; default avoids China and the United States.
 - `--extra-query 'duration>2'`: pass extra Vast.ai query filters.
 - `--destroy-on-success-only`: keep failed jobs running for debugging. Warn the user that billing continues.
 - `--offer-type bid`: search/rent interruptible instances; the scheduler passes a suggested `--bid_price`.

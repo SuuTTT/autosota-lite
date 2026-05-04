@@ -13,6 +13,7 @@ __pycache__/
 *.pyo
 .venv/
 venv/
+wandb/
 
 # Misc
 .DS_Store
