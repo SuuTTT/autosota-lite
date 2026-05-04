@@ -15,12 +15,18 @@ Use this skill when the user wants a live Vast.ai scheduler that can estimate co
 - If the user already pasted a key into chat, recommend rotating it in Vast.ai and setting the replacement locally.
 - Prefer on-demand instances for non-disposable training. Use interruptible only when the user accepts preemption risk.
 - Default country exclusions are `CN,US`; keep them unless the user explicitly changes them.
-- Default cost limit: avoid instances costing more than **$0.1/hour** (set `--max-dph 0.1`). Override only for specific use cases.
+- Always start from the cheapest GPU tier first (for example, RTX 3060-class offers) by sorting/choosing lowest `dph`.
+- Default cost limit: avoid instances costing more than **$0.1/hour** (set `--max-dph 0.1`). Increase above $0.1/hour only after a confirmed GPU OOM error.
+- Default internet usage-based cost cap: never exceed **$0.005/TB** for upload or download pricing.
 - Destroying an instance deletes its data. Make sure the job uploads or persists anything important before cleanup.
 
 ## Cost Control (NEW)
 
 **Default cost filter: `--max-dph 0.1` (avoid >$0.1/hour instances)**
+
+**Default GPU selection policy:** start with cheapest GPU offers first (RTX 3060-class when available), and move to higher tiers only if runtime evidence (such as GPU OOM) requires it.
+
+**Default network pricing cap:** set usage-based internet cost limits to at most **$0.005/TB** (equivalent to `$0.000005/GB`) for both upload and download.
 
 The scheduler now automatically filters out expensive instances. To use costlier hardware:
 
@@ -450,9 +456,10 @@ total_usd = runtime_hours * dph_total + upload_gb * inet_up_cost + download_gb *
 
 ### Cost Control (NEW)
 - `--max-dph 0.1`: **maximum hourly cost in USD** (default: 0.1 = avoid >$0.1/hour instances) ⭐
+- GPU escalation rule: start with cheapest GPUs first (for example RTX 3060-class by lowest `dph`), and only raise `--max-dph` above 0.1 after a confirmed GPU OOM.
 - `--max-storage-cost 0.20`: maximum storage price in USD/GB/month.
-- `--max-inet-up-cost 0.02`: maximum upload price in USD/GB.
-- `--max-inet-down-cost 0.02`: maximum download price in USD/GB.
+- `--max-inet-up-cost 0.000005`: maximum upload price in USD/GB (equivalent to $0.005/TB).
+- `--max-inet-down-cost 0.000005`: maximum download price in USD/GB (equivalent to $0.005/TB).
 
 ### True Run Estimator (NEW)
 - `--profile true`: run short test series before full job (default: false)

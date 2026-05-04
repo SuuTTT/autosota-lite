@@ -23,9 +23,9 @@ inputs:
 
   target_dimension:
     type: string
-    description: "Optimization target: speed | memory | readability"
+    description: "Optimization target: speed | performance | readability"
     default: "speed"
-    enum: ["speed", "memory", "readability"]
+    enum: ["speed", "performance", "readability"]
     required: false
 
   speed_target:

@@ -1,6 +1,6 @@
 ---
 name: autosota-common-key-manager
-description: Manage API credentials securely for WandB, Slack, Gmail, and GitHub integrations. Supports both local (.env.local) and GCP Secret Manager storage.
+description: Manage API credentials securely for WandB, Slack, Gmail, GitHub, and HuggingFace integrations. Supports both local (.env.local) and GCP Secret Manager storage.
 ---
 
 # AutoSOTA Common Key Manager
@@ -16,13 +16,16 @@ Securely manage credentials for WandB, Slack, Gmail, and GitHub. No secrets in c
 import wandb
 wandb.init(project="my-project")  # Uses WANDB_API_KEY
 wandb.log({"loss": 0.5})
+
+from huggingface_hub import HfApi
+api = HfApi(token=os.environ["HF_TOKEN"])  # Uses HF_TOKEN
 ```
 
 **Deploy mode** (one-time setup):
 ```bash
 # 1. Add credentials to /workspace/autosota-lite/.env.local
 # 2. Verify they work:
-python3 check_keys.py --services wandb,slack,email
+python3 check_keys.py --services wandb,slack,email,huggingface
 # 3. (Optional) Push to GCP Secret Manager:
 python3 enable_and_setup_secrets.py
 ```
@@ -41,6 +44,7 @@ WANDB_API_KEY=wandb_v1_xxxxx
 SLACK_WEBHOOK_URL=https://hooks.slack.com/services/T00/B00/xxx
 GMAIL_USER=your.email@gmail.com
 GMAIL_APP_PASSWORD=xxxx xxxx xxxx xxxx
+HF_TOKEN=hf_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
 2. Verify:
@@ -110,6 +114,33 @@ with smtplib.SMTP("smtp.gmail.com", 587) as server:
     server.send_message(msg)
 ```
 
+### HuggingFace Hub
+```python
+import os
+from huggingface_hub import HfApi, create_repo
+
+api = HfApi(token=os.environ["HF_TOKEN"])
+
+# Create dataset/model repo
+create_repo("my-org/my-dataset", repo_type="dataset", exist_ok=True, token=os.environ["HF_TOKEN"])
+
+# Upload entire folder as dataset
+api.upload_folder(
+    folder_path="/local/data/dir",
+    repo_id="my-org/my-dataset",
+    repo_type="dataset",
+    commit_message="Add dataset"
+)
+
+# Or upload a single file
+api.upload_file(
+    path_or_fileobj="/local/file.npz",
+    path_in_repo="data/file.npz",
+    repo_id="my-org/my-dataset",
+    repo_type="dataset",
+)
+```
+
 ---
 
 ## Service Credentials Map
@@ -120,6 +151,7 @@ with smtplib.SMTP("smtp.gmail.com", 587) as server:
 | Slack | `SLACK_WEBHOOK_URL` | `autosota-slack-webhook-url` | Optional |
 | Gmail | `GMAIL_USER`, `GMAIL_APP_PASSWORD` | `autosota-gmail-user`, `autosota-gmail-app-password` | Optional |
 | GitHub | `GITHUB_TOKEN` | N/A | Optional |
+| HuggingFace | `HF_TOKEN` | `autosota-hf-token` | ✓ For datasets/models |
 
 ### Getting Credentials
 
@@ -132,6 +164,10 @@ with smtplib.SMTP("smtp.gmail.com", 587) as server:
 **Gmail App Password:**
 - https://myaccount.google.com/apppasswords (requires 2FA enabled)
 - Select "Mail" and "Windows Computer"
+
+**HuggingFace Token:**
+- https://huggingface.co/settings/tokens
+- Create a token with `write` permission for uploading datasets/models
 
 ---
 

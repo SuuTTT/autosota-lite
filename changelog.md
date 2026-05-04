@@ -32,6 +32,8 @@
 - Schema standardization: Result logging schema needs additional validation rules.
 
 ### Planned
+- detect deadlock
+
 
 #### High Priority
 
