@@ -51,6 +51,38 @@ python3 vastai_scheduler.py estimate \
   --max-dph 0.1
 ```
 
+### Lowest Disk Cost Mode (NEW)
+
+Use this mode when disk pricing is the main bottleneck. It prioritizes offers with the lowest storage price and enforces strict storage/network caps.
+
+Estimate with storage-first ordering:
+
+```bash
+python3 vastai_scheduler.py estimate \
+  --runtime-hours 4 \
+  --disk-gb 200 \
+  --order storage_cost \
+  --max-storage-cost 0.05 \
+  --max-inet-up-cost 0.000005 \
+  --max-inet-down-cost 0.000005 \
+  --max-hourly-cost 0.1
+```
+
+Test it with a cheap dry-run launch (no rental without `--yes`):
+
+```bash
+python3 vastai_scheduler.py launch \
+  --runtime-hours 0.03 \
+  --disk-gb 200 \
+  --order storage_cost \
+  --max-storage-cost 0.05 \
+  --max-inet-up-cost 0.000005 \
+  --max-inet-down-cost 0.000005 \
+  --max-hourly-cost 0.1 \
+  --job-cmd 'echo disk-cost-mode-smoke-test && df -h' \
+  --label disk-cost-mode-test
+```
+
 ## True Run Estimator (NEW)
 
 For long-running tasks (>4 hours), profile actual performance **before** committing full compute.
@@ -457,6 +489,7 @@ total_usd = runtime_hours * dph_total + upload_gb * inet_up_cost + download_gb *
 ### Cost Control (NEW)
 - `--max-dph 0.1`: **maximum hourly cost in USD** (default: 0.1 = avoid >$0.1/hour instances) ⭐
 - GPU escalation rule: start with cheapest GPUs first (for example RTX 3060-class by lowest `dph`), and only raise `--max-dph` above 0.1 after a confirmed GPU OOM.
+- `--order storage_cost`: prioritize the lowest disk/storage-cost offers first (use for disk-cost mode).
 - `--max-storage-cost 0.20`: maximum storage price in USD/GB/month.
 - `--max-inet-up-cost 0.000005`: maximum upload price in USD/GB (equivalent to $0.005/TB).
 - `--max-inet-down-cost 0.000005`: maximum download price in USD/GB (equivalent to $0.005/TB).

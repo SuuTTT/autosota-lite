@@ -33,7 +33,8 @@
 
 ### Planned
 - detect deadlock
-
+- find the lowest cost
+- 
 
 #### High Priority
 

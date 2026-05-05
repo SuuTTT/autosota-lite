@@ -302,8 +302,201 @@ Performance:
   ✓ GPU utilization: [%]
 ```
 
+## Notebook Workflow
+
+Use a Jupyter notebook as a **three-panel comparison document**: original code → abstraction → clean reimplementation. This makes the reverse-engineering process transparent and reviewable.
+
+### Notebook Cell Structure
+
+Each major component gets a triplet of cells:
+
+```
+[markdown]   ### Component Name
+[python]     # ── ORIGINAL ──  (source code, read-only reference)
+[markdown]   **Abstraction** (pseudocode + design choices)
+[python]     # ── NEW CODE ──  (clean reimplementation)
+[python]     # ── SMOKE TEST ── (minimal assert / forward pass check)
+```
+
+### Example Notebook Layout
+
+````xml
+<!-- filepath: reverse_engineering.ipynb -->
+<VSCode.Cell language="markdown">
+# Reverse Engineering: [Paper / Repo Name]
+
+| | Source | Reimplementation |
+|---|---|---|
+| Framework | TensorFlow 1.x | PyTorch |
+| Style | Class-heavy | CleanRL single-file |
+| Lines | ~800 | ~200 |
+</VSCode.Cell>
+
+<VSCode.Cell language="python">
+# Setup — install deps for both source inspection and reimplementation
+# pip install torch gymnasium
+</VSCode.Cell>
+
+<VSCode.Cell language="markdown">
+## 1. Policy Network
+
+### Original Code (source reference — do not copy)
+</VSCode.Cell>
+
+<VSCode.Cell language="python">
+# ── ORIGINAL ──
+# Paste or fetch the source snippet here for reference only.
+# Example from openai/baselines ppo.py:
+#
+# class MlpPolicy(object):
+#     def __init__(self, sess, ob_space, ac_space, nbatch, nsteps, reuse=False):
+#         ob_shape = (nbatch,) + ob_space.shape
+#         with tf.variable_scope("model", reuse=reuse):
+#             X = tf.placeholder(tf.float32, ob_shape)
+#             activ = tf.tanh
+#             h1 = activ(fc(X, 'pi_fc1', nh=64, init_scale=np.sqrt(2)))
+#             h2 = activ(fc(h1, 'pi_fc2', nh=64, init_scale=np.sqrt(2)))
+#             pi = fc(h2, 'pi', ac_space.n, init_scale=0.01)
+#             vf = fc(h2, 'vf', 1)[:,0]
+</VSCode.Cell>
+
+<VSCode.Cell language="markdown">
+### Abstraction
+
+```
+PolicyNetwork:
+  Input:  observation (batch, obs_dim)
+  Layers: Linear(obs_dim→64) → Tanh → Linear(64→64) → Tanh
+  Heads:
+    policy → Linear(64→action_dim)   # logits
+    value  → Linear(64→1)            # scalar V(s)
+
+Critical design choices:
+  - Shared trunk, split heads
+  - Tanh activations (not ReLU)
+  - init_scale=0.01 on policy head (small init)
+  - init_scale=sqrt(2) on hidden layers
+```
+</VSCode.Cell>
+
+<VSCode.Cell language="python">
+# ── NEW CODE ──
+import torch
+import torch.nn as nn
+import numpy as np
+
+def layer_init(layer, std=np.sqrt(2), bias_const=0.0):
+    nn.init.orthogonal_(layer.weight, std)
+    nn.init.constant_(layer.bias, bias_const)
+    return layer
+
+class PolicyNetwork(nn.Module):
+    def __init__(self, obs_dim: int, action_dim: int):
+        super().__init__()
+        self.trunk = nn.Sequential(
+            layer_init(nn.Linear(obs_dim, 64)), nn.Tanh(),
+            layer_init(nn.Linear(64, 64)),      nn.Tanh(),
+        )
+        self.policy_head = layer_init(nn.Linear(64, action_dim), std=0.01)
+        self.value_head  = layer_init(nn.Linear(64, 1),          std=1.0)
+
+    def forward(self, obs):
+        h = self.trunk(obs)
+        return self.policy_head(h), self.value_head(h).squeeze(-1)
+</VSCode.Cell>
+
+<VSCode.Cell language="python">
+# ── SMOKE TEST ──
+obs_dim, action_dim, batch = 8, 4, 32
+net = PolicyNetwork(obs_dim, action_dim)
+obs = torch.randn(batch, obs_dim)
+logits, value = net(obs)
+assert logits.shape == (batch, action_dim), f"bad logits shape: {logits.shape}"
+assert value.shape  == (batch,),            f"bad value shape: {value.shape}"
+print("✓ PolicyNetwork shapes OK")
+</VSCode.Cell>
+
+<VSCode.Cell language="markdown">
+## 2. Advantage Computation
+
+### Original Code (source reference)
+</VSCode.Cell>
+
+<VSCode.Cell language="python">
+# ── ORIGINAL ──
+# From source (GAE computation):
+# mb_advs = np.zeros_like(mb_rewards)
+# lastgaelam = 0
+# for t in reversed(range(nsteps)):
+#     if t == nsteps - 1:
+#         nextnonterminal = 1.0 - last_dones
+#         nextvalues = last_values
+#     else:
+#         nextnonterminal = 1.0 - mb_dones[t+1]
+#         nextvalues = mb_values[t+1]
+#     delta = mb_rewards[t] + gamma * nextvalues * nextnonterminal - mb_values[t]
+#     mb_advs[t] = lastgaelam = delta + gamma * lam * nextnonterminal * lastgaelam
+</VSCode.Cell>
+
+<VSCode.Cell language="markdown">
+### Abstraction
+
+```
+GAE(rewards, values, dones, γ, λ):
+  advantages[T-1..0]:
+    δ_t = r_t + γ * V(s_{t+1}) * (1-done_t) - V(s_t)
+    A_t = δ_t + γλ * (1-done_t) * A_{t+1}
+  returns = advantages + values
+```
+</VSCode.Cell>
+
+<VSCode.Cell language="python">
+# ── NEW CODE ──
+def compute_gae(rewards, values, dones, gamma=0.99, lam=0.95):
+    """Generalized Advantage Estimation. All inputs: (T,) tensors."""
+    T = len(rewards)
+    advantages = torch.zeros(T)
+    last_adv = 0.0
+    for t in reversed(range(T)):
+        mask = 1.0 - dones[t].float()
+        next_val = values[t + 1] if t < T - 1 else 0.0
+        delta = rewards[t] + gamma * next_val * mask - values[t]
+        advantages[t] = last_adv = delta + gamma * lam * mask * last_adv
+    return advantages, advantages + values
+</VSCode.Cell>
+
+<VSCode.Cell language="python">
+# ── SMOKE TEST ──
+T = 10
+rewards = torch.ones(T)
+values  = torch.zeros(T)
+dones   = torch.zeros(T)
+advs, returns = compute_gae(rewards, values, dones)
+assert advs.shape == (T,)
+print("✓ GAE shapes OK | mean adv:", advs.mean().item())
+</VSCode.Cell>
+
+<VSCode.Cell language="markdown">
+## Validation Summary
+
+| Component | Source result | Reimplement result | Match? |
+|---|---|---|---|
+| PolicyNetwork forward | shape (B, A) | shape (B, A) | ✓ |
+| GAE advantages | ... | ... | ✓ |
+| Final reward (CartPole) | 500 | ??? | pending |
+</VSCode.Cell>
+````
+
+### Rules for the Notebook
+
+1. **Original cells are read-only references** — paste the source snippet as a comment block; never execute it directly in the notebook.
+2. **One abstraction markdown cell per component** — write pseudocode and critical design choices before writing new code.
+3. **Every new-code cell must be followed by a smoke-test cell** — a cheap assert that checks shapes, dtypes, or a single forward pass.
+4. **Validation summary table at the end** — track which components are verified against source results.
+
 ## Output Artifacts
 
+- `reverse_engineering.ipynb` — Three-panel notebook (original → abstraction → new code)
 - `code_map.md` — Architecture analysis (data structures, algorithms, dependencies)
 - `algorithm_pseudocode.md` — Abstract algorithm patterns
 - `implementation_plan.md` — Step-by-step reimplementation guide
