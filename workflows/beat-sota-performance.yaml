@@ -1,0 +1,396 @@
+name: "Beat SOTA: Optimize for Performance"
+description: "Download paper and source code, determine the benchmark metrics that define SOTA, reimplement with improvements, and compare against published numbers."
+version: "1.0"
+
+# How to run:
+# python -m sota_workflow_orchestrator run workflows/beat-sota-performance.yaml \
+#   --paper-url "https://arxiv.org/abs/1707.06347" \
+#   --repo-url "https://github.com/openai/baselines" \
+#   --target-dimension "performance"
+
+inputs:
+  paper_url:
+    type: string
+    description: "arXiv link or direct paper URL"
+    required: true
+    example: "https://arxiv.org/abs/2301.04104"
+
+  repo_url:
+    type: string
+    description: "GitHub repository URL with original implementation"
+    required: true
+    example: "https://github.com/nicklashansen/tdmpc2"
+
+  target_dimension:
+    type: string
+    description: "Optimization target: performance | speed | readability"
+    default: "performance"
+    enum: ["performance", "speed", "readability"]
+    required: false
+
+  performance_target:
+    type: string
+    description: "Goal improvement: e.g., '+5% on benchmark', 'beat Table 1 row 3'"
+    default: "+5% on primary benchmark"
+    required: false
+
+  max_dph:
+    type: number
+    description: "Max hourly GPU cost in USD. Escalate only after OOM."
+    default: 0.1
+    required: false
+
+stages:
+  # Stage 1: Download paper PDF, source code, and any official result artefacts
+  - name: "Collect Original Resources"
+    id: "collect_original"
+    skill: sota-collect-resources
+    description: "Download paper PDF, source repo, official benchmark results, and datasets"
+    inputs:
+      paper_url: ${paper_url}
+      repo_url: ${repo_url}
+      fetch:
+        - paper_pdf
+        - source_code
+        - official_results       # tables / leaderboard entries from the paper
+        - benchmark_datasets     # any publicly hosted evaluation sets
+    outputs:
+      - paper_pdf
+      - original_code
+      - official_results         # structured table extracted from the paper
+      - benchmark_datasets
+    timeout: "15 minutes"
+    retry:
+      max_attempts: 2
+
+  # Stage 2: Determine the primary metrics that define SOTA for this paper
+  - name: "Identify Benchmark Metrics"
+    id: "identify_metrics"
+    skill: paper-result-aggregator
+    description: >
+      Parse the paper to extract: primary metric name, evaluation protocol,
+      dataset splits, reported SOTA numbers, and any secondary metrics.
+    inputs:
+      paper_pdf: ${stages.collect_original.outputs.paper_pdf}
+      official_results: ${stages.collect_original.outputs.official_results}
+      extract:
+        - primary_metric          # e.g., "return@1M", "accuracy@top1", "F1"
+        - evaluation_protocol     # e.g., "DMControl suite, 3 seeds, 1M steps"
+        - sota_numbers            # reported numbers from Table 1 / main results
+        - secondary_metrics       # e.g., wall-clock time, params, memory
+        - ablation_targets        # key design choices worth testing
+    outputs:
+      - primary_metric
+      - evaluation_protocol
+      - sota_numbers
+      - secondary_metrics
+      - metrics_schema            # JSON schema for score validation
+    timeout: "10 minutes"
+    depends_on: ["collect_original"]
+
+  # Stage 3: Reverse-engineer the code to understand architecture and weak points
+  - name: "Analyze Original Code"
+    id: "code_analysis"
+    skill: code-reverse-engineering
+    description: "Extract algorithm, data flow, and performance opportunities"
+    inputs:
+      code: ${stages.collect_original.outputs.original_code}
+      paper_pdf: ${stages.collect_original.outputs.paper_pdf}
+      primary_metric: ${stages.identify_metrics.outputs.primary_metric}
+      focus:
+        - architecture            # model structure, layers, hyperparams
+        - training_loop           # update rules, losses, schedules
+        - evaluation_protocol     # how the paper measures the metric
+        - performance_gaps        # where the method could be stronger
+        - ablation_targets        # components worth swapping / tuning
+    outputs:
+      - code_map
+      - algorithm_pseudocode
+      - performance_gaps
+      - optimization_plan
+      - implementation_recommendations
+    timeout: "20 minutes"
+    depends_on: ["collect_original", "identify_metrics"]
+
+  # Stage 4: Reproduce original numbers on cheap GPU to confirm baseline
+  - name: "Reproduce Baseline"
+    id: "baseline_test"
+    skill: util-gpu-scheduler
+    description: "Run original code and capture primary + secondary metrics"
+    inputs:
+      code: ${stages.collect_original.outputs.original_code}
+      evaluation_protocol: ${stages.identify_metrics.outputs.evaluation_protocol}
+      metrics_schema: ${stages.identify_metrics.outputs.metrics_schema}
+      metrics:
+        - primary_metric          # from identify_metrics
+        - secondary_metrics       # from identify_metrics
+        - gpu_utilization
+        - memory_peak
+        - speed_per_epoch
+      runs: 3                     # average over 3 seeds
+      max_dph: ${max_dph}         # start cheap; escalate only after OOM
+      gpu_preference: "cheapest"  # RTX 3060-class first
+    outputs:
+      - baseline_metrics
+      - baseline_logs
+      - baseline_primary_score
+      - baseline_secondary
+    timeout: "120 minutes"
+    depends_on: ["collect_original", "identify_metrics"]
+    error_handling:
+      on_oom:
+        action: "retry"
+        escalate_dph: 0.05        # raise max_dph by this amount on each OOM
+
+  # Stage 5: Reimplement with targeted performance improvements
+  - name: "Reimplement for Performance"
+    id: "reimplement"
+    skill: sota-iterate-and-improve
+    description: "Create improved version targeting ${performance_target}"
+    inputs:
+      original_code: ${stages.collect_original.outputs.original_code}
+      optimization_plan: ${stages.code_analysis.outputs.optimization_plan}
+      performance_gaps: ${stages.code_analysis.outputs.performance_gaps}
+      sota_numbers: ${stages.identify_metrics.outputs.sota_numbers}
+      primary_metric: ${stages.identify_metrics.outputs.primary_metric}
+      target_goal: ${performance_target}
+      constraints:
+        - "Must be evaluated with identical protocol to original"
+        - "Use PyTorch or JAX"
+        - "Speed regression ≤ 20% vs baseline"
+        - "Minimize new dependencies"
+    outputs:
+      - optimized_code
+      - optimization_notes
+      - changes_summary
+      - notebook                  # three-panel notebook: original → abstraction → new
+    timeout: "60 minutes"
+    depends_on: ["code_analysis", "baseline_test"]
+
+  # Stage 6: Evaluate reimplemented code on same benchmark
+  - name: "Evaluate Optimized Code"
+    id: "optimized_test"
+    skill: util-gpu-scheduler
+    description: "Run optimized code with identical evaluation protocol"
+    inputs:
+      code: ${stages.reimplement.outputs.optimized_code}
+      evaluation_protocol: ${stages.identify_metrics.outputs.evaluation_protocol}
+      metrics_schema: ${stages.identify_metrics.outputs.metrics_schema}
+      metrics:
+        - primary_metric
+        - secondary_metrics
+        - gpu_utilization
+        - memory_peak
+        - speed_per_epoch
+      runs: 3
+      max_dph: ${max_dph}
+      gpu_preference: "cheapest"
+    outputs:
+      - optimized_metrics
+      - optimized_logs
+      - optimized_primary_score
+      - optimized_secondary
+    timeout: "120 minutes"
+    depends_on: ["reimplement"]
+    error_handling:
+      on_oom:
+        action: "retry"
+        escalate_dph: 0.05
+
+  # Stage 7: Compare against baseline and published SOTA numbers
+  - name: "Compare Results"
+    id: "compare_results"
+    skill: sota-compare-metrics
+    description: "Generate comparison table vs baseline and published paper numbers"
+    inputs:
+      original_metrics: ${stages.baseline_test.outputs.baseline_metrics}
+      optimized_metrics: ${stages.optimized_test.outputs.optimized_metrics}
+      sota_numbers: ${stages.identify_metrics.outputs.sota_numbers}
+      primary_metric: ${stages.identify_metrics.outputs.primary_metric}
+      dimensions:
+        - "performance"           # primary metric vs paper SOTA
+        - "speed"                 # wall-clock time
+        - "memory"                # peak memory usage
+        - "readability"           # lines of code, complexity
+        - "deployment"            # dependency count
+    outputs:
+      - comparison_table
+      - comparison_report
+      - improvement_summary
+      - metrics_json
+      - beats_sota               # bool: did we exceed the paper's reported number?
+    timeout: "10 minutes"
+    depends_on: ["baseline_test", "optimized_test"]
+
+  # Stage 8: Publish results to blog
+  - name: "Publish Results"
+    id: "publish_blog"
+    skill: util-publisher
+    action: "publish_blog_post"
+    description: "Create blog post with comparison table and code link"
+    inputs:
+      title: "Beat SOTA: ${repo_url | basename} performance improvements"
+      content: |
+        # Beating SOTA on ${repo_url | basename}
+
+        ## Summary
+
+        We reimplemented [${paper_url}](${paper_url}) and improved **{{primary_metric}}**
+        from {{baseline_primary_score}} → **{{optimized_primary_score}}**
+        (paper reports {{sota_number}}).
+
+        ## Results
+
+        | Metric | Paper SOTA | Our Baseline | Ours (optimized) | vs SOTA |
+        |--------|-----------|--------------|-----------------|---------|
+        | {{primary_metric}} | {{sota_number}} | {{baseline_primary_score}} | **{{optimized_primary_score}}** | **{{vs_sota_delta}}** |
+        | Speed (sec/epoch) | — | {{baseline_speed}} | {{optimized_speed}} | {{speed_delta}} |
+        | Memory (MB) | — | {{baseline_memory}} | {{optimized_memory}} | {{memory_delta}} |
+        | Code lines | — | {{original_lines}} | {{optimized_lines}} | {{code_reduction}} |
+
+        ## Key Changes
+
+        {{optimization_notes}}
+
+        ## Full Report
+
+        {{comparison_report}}
+
+        ## Code
+
+        [View on GitHub]({{code_github_url}})
+
+      tags:
+        - "sota"
+        - "performance"
+        - "${target_dimension}"
+      github_token: ${secrets.GITHUB_TOKEN}
+    outputs:
+      - blog_url
+      - blog_commit
+    timeout: "10 minutes"
+    depends_on: ["compare_results"]
+
+  # Stage 9: Push code to GitHub
+  - name: "Publish Code"
+    id: "publish_code"
+    skill: util-publisher
+    action: "push_to_github"
+    description: "Push optimized code to GitHub"
+    inputs:
+      repo_name: "beat-sota-perf-${repo_url | basename | slugify}"
+      description: "Improved ${target_dimension} for ${repo_url | basename}"
+      branch: "main"
+      files:
+        - optimized_code: ${stages.reimplement.outputs.optimized_code}
+        - notebook: ${stages.reimplement.outputs.notebook}
+        - comparison.json: ${stages.compare_results.outputs.metrics_json}
+        - changes.md: ${stages.reimplement.outputs.changes_summary}
+    outputs:
+      - code_repo_url
+      - code_commit
+    timeout: "10 minutes"
+    depends_on: ["reimplement"]
+
+  # Stage 10: Notify team
+  - name: "Notify Team"
+    id: "notify"
+    skill: util-notifier
+    description: "Send notification with headline result"
+    inputs:
+      channels:
+        - "slack:#sota-wins"
+        - "email:team@example.com"
+      message: |
+        🏆 Beat SOTA (performance)!
+
+        **Paper:** {{paper_url}}
+        **Metric:** {{primary_metric}}
+          Paper SOTA  → {{sota_number}}
+          Our result  → {{optimized_primary_score}}  ({{vs_sota_delta}})
+
+        📝 Blog: {{blog_url}}
+        💻 Code: {{code_repo_url}}
+      attachments:
+        - ${stages.compare_results.outputs.comparison_table}
+    timeout: "5 minutes"
+    depends_on: ["publish_blog", "publish_code"]
+
+# Workflow outputs
+outputs:
+  primary_metric: ${stages.identify_metrics.outputs.primary_metric}
+  sota_numbers: ${stages.identify_metrics.outputs.sota_numbers}
+  baseline_score: ${stages.baseline_test.outputs.baseline_primary_score}
+  optimized_score: ${stages.optimized_test.outputs.optimized_primary_score}
+  beats_sota: ${stages.compare_results.outputs.beats_sota}
+  comparison_report: ${stages.compare_results.outputs.comparison_report}
+  blog_announcement: ${stages.publish_blog.outputs.blog_url}
+  code_repository: ${stages.publish_code.outputs.code_repo_url}
+  notebook: ${stages.reimplement.outputs.notebook}
+
+# Checkpoints for resuming
+checkpoints:
+  - name: "Resources downloaded"
+    stage: "collect_original"
+  - name: "Metrics identified"
+    stage: "identify_metrics"
+  - name: "Baseline reproduced"
+    stage: "baseline_test"
+  - name: "Reimplementation done"
+    stage: "reimplement"
+  - name: "Evaluation complete"
+    stage: "optimized_test"
+  - name: "Ready to publish"
+    stage: "compare_results"
+
+# Metrics tracked across the run
+metrics:
+  - primary_metric_name
+  - sota_number
+  - baseline_primary_score
+  - optimized_primary_score
+  - vs_sota_delta
+  - speed_per_epoch_baseline
+  - speed_per_epoch_optimized
+  - memory_peak_baseline
+  - memory_peak_optimized
+  - beats_sota
+  - total_duration
+  - total_gpu_cost_usd
+
+# Error handling
+error_handling:
+  on_metric_regression:
+    condition: "optimized_primary_score < baseline_primary_score * 0.95"
+    action: "pause"
+    message: "Primary metric regressed >5% vs baseline. Review changes before continuing."
+
+  on_test_failure:
+    condition: "optimized_test.failed"
+    action: "retry"
+    max_retries: 2
+    backoff: "exponential"
+
+  on_oom:
+    condition: "gpu_oom_detected"
+    action: "escalate_gpu"
+    message: "OOM detected. Escalating GPU tier and retrying."
+
+# Notifications on completion
+notifications:
+  on_success:
+    channels: ["slack:#sota-wins"]
+    message: "✅ Beat SOTA (performance): {{vs_sota_delta}} on {{primary_metric}}. Blog: {{blog_url}}"
+
+  on_failure:
+    channels: ["slack:#errors"]
+    message: "❌ Beat SOTA (performance) failed at {{failed_stage}}: {{error_message}}"
+
+# Metadata
+metadata:
+  author: "AutoSOTA"
+  created: "2026-05-05"
+  updated: "2026-05-05"
+  status: "production"
+  version: "1.0"
+  tags: ["performance", "beat-sota", "benchmark", "reimplementation"]
