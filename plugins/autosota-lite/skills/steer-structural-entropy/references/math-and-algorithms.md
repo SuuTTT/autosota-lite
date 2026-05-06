@@ -80,23 +80,6 @@ Louvain-like recursive procedure:
 
 This is appropriate for million-edge graphs, online approximation, and precomputing hierarchies for downstream learning.
 
-## Differentiable SE
-
-Use when SE must be optimized end-to-end with neural parameters.
-
-Represent hierarchy or clustering with a soft assignment matrix `S`, where `S[i, k]` is the probability that base entity `i` belongs to module `k`. Construct differentiable approximations of:
-
-- module volume,
-- module cut,
-- parent-child volume ratios,
-- entropy objective,
-- optional balance or depth regularizers.
-
-Typical neural integration:
-
-```text
-L_total = L_task + beta * H_soft_SE + gamma * L_hierarchy_regularization
-```
 
 Design choices to specify:
 
