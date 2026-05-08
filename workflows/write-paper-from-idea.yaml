@@ -51,7 +51,7 @@ stages:
   # Stage 2: Analyze writing style from reference papers
   - name: "Analyze Writing Style"
     id: "analyze_style"
-    skill: code-reverse-engineering
+    skill: paper-reverse-engineering
     description: "Extract rhetorical patterns and structure from reference papers"
     inputs:
       papers: ${stages.collect_references.outputs.reference_papers}
