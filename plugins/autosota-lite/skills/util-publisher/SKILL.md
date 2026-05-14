@@ -101,19 +101,74 @@ Share & download PDF
 
 **Workflow:**
 ```
-Write blog post in Markdown
+Write blog post in Markdown (Hugo format)
     ↓
-git push to GitHub blog repo
+git clone / pull blog repo (already at /tmp/suuttt.github.io)
     ↓
-GitHub Pages auto-deploys
+cp post to content/projects/YYYY-MM-DD-slug.md
     ↓
-Blog updates instantly
+git add → commit → pull --rebase → push
+    ↓
+GitHub Pages / Hugo auto-deploys
 ```
 
 **Tools:**
 - Script: `github_git_push.py` → `publish_blog_post()`
-- Platform: GitHub Pages (or your blog)
-- Formulas: KaTeX validation
+- Platform: GitHub Pages (Hugo) at https://github.com/SuuTTT/suuttt.github.io
+- **Default push repo**: https://github.com/SuuTTT/suuttt.github.io (branch: `master`)
+- Formulas: KaTeX via `{{< katex >}}` shortcode + `math: true` frontmatter
+- Repo cloned at: `/tmp/suuttt.github.io` (with token auth pre-configured)
+
+#### Hugo Frontmatter Format (required)
+
+```yaml
+---
+title: "Your Post Title"
+date: 2026-05-14
+description: "One sentence description"
+layout: "post"
+showTableOfContents: true
+math: true
+katex: true
+tags: ["tag1", "tag2"]
+---
+
+{{< katex >}}
+```
+
+#### KaTeX Formula Rules
+
+- Inline math: `\( x + y \)` — e.g., `\(H_2\)`, `\(\rho = -0.73\)`
+- Block math: `$$\n...\n$$` (double dollar signs, own line)
+- Do NOT use `$...$` for inline — it does NOT render in Hugo+KaTeX
+- Must include `{{< katex >}}` shortcode immediately after frontmatter
+- Example: `$$H_2(G,P) = -\sum_{c} \frac{g_c}{\mathrm{vol}(G)} \log_2 \frac{V_c}{\mathrm{vol}(G)}$$`
+
+#### Figure/Image Insertion
+
+Hugo markdown supports standard image syntax:
+```markdown
+![Caption](path/to/image.png)
+```
+For figures already in the repo, use relative paths from `static/`:
+```markdown
+![Correlation heatmap](/images/correlation_heatmap.png)
+```
+For figures not yet committed, use ASCII diagrams or markdown tables as placeholders.
+
+#### Manual Push Workflow (agent-safe)
+
+```bash
+# Repo is at /tmp/suuttt.github.io (pre-cloned with token)
+cp my_post.md /tmp/suuttt.github.io/content/projects/YYYY-MM-DD-slug.md
+cd /tmp/suuttt.github.io
+git config user.email "suuttt@icloud.com"
+git config user.name "sudingli"
+git add content/projects/YYYY-MM-DD-slug.md
+git commit -m "Blog: Post Title"
+git pull --rebase origin master   # always pull before push to avoid rejection
+git push origin master
+```
 
 ### 3. Results Announcement (Slack)
 
