@@ -12,7 +12,7 @@ Plugin skill directories should remain direct children of `plugins/autosota-lite
 - `autosota-agent-monitor-scheduler`: combined monitoring and scheduling for persistent context management across execution resets.
 
 **Research Context & Governance:**
-- `autosota-agent-resource`: paper-to-repository grounding; maps paper assets, repositories, datasets, and checkpoints.
+- `suuttt-agent-resource`: paper-to-repository grounding; maps paper assets, repositories, datasets, and checkpoints.
 - `autosota-agent-objective`: objective construction, rubric definition, and success metrics refinement.
 - `autosota-agent-supervisor`: scientific validity enforcement and benchmark red-line governance.
 
@@ -75,4 +75,3 @@ skills/
 references/
   skill-map.md
 ```
-

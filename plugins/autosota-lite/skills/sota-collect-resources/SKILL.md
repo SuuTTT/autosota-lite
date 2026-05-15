@@ -1,9 +1,9 @@
 ---
-name: autosota-agent-resource
-description: Implement AgentResource from AutoSOTA to bridge static literature and executable environments. This skill manages paper-to-repository grounding, readiness assessment, and external resource acquisition (datasets, weights).
+name: suuttt-agent-resource
+description: Implement a custom AgentResource skill to bridge static literature and executable environments. This skill manages paper-to-repository grounding, readiness assessment, and external resource acquisition (datasets, weights).
 ---
 
-# AutoSOTA AgentResource: Bridging Static Literature and Executable Environments
+# SuuTTT AgentResource: Bridging Static Literature and Executable Environments
 
 Use this skill to automate the transition from a research paper (PDF/URL) to an execution-ready experiment environment. This follows the architecture defined in Section 2.2 of the AutoSOTA paper.
 
