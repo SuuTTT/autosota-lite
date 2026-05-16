@@ -94,6 +94,7 @@ Skill organization by purpose. **Find your paper's skills in seconds.**
 | `util-scheduler` | Schedule tasks |
 | `util-objective` | Define optimization objectives |
 | `util-rl-section` | Generate RL experiment sections |
+| `util-unzip` | Extract zip and compressed archives |
 
 **When to use:**
 - Set up credentials? → `util-key-manager`
@@ -109,6 +110,7 @@ Skill organization by purpose. **Find your paper's skills in seconds.**
 
 | Task | Skill |
 |------|-------|
+| Extract compressed archives | `util-unzip` |
 | Find papers & datasets | `sota-collect-resources` |
 | Run code from a paper | `sota-reproduce-and-iterate` |
 | Get new ideas | `sota-idea-generator` |
