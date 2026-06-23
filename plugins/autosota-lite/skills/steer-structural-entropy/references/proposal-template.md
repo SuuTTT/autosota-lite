@@ -47,6 +47,21 @@ for each training epoch:
     optimize baseline objective plus SE objective
 ```
 
+### 3b. Faithfulness Checklist
+
+Before implementing, verify the proposed graph matches the paper spec on each dimension:
+
+- [ ] Graph type: directed (use stationary-π) vs undirected (use degree/2m)
+- [ ] Edge semantics: what relationship do edges represent? (entailment, transition probability, cosine similarity, spatial adjacency…)
+- [ ] Edge weight normalization: row-stochastic, symmetric, raw counts?
+- [ ] Tree construction: which operators? (merge/combine/split/lift/join); which level? (2D vs full tree)
+- [ ] Entropy formula: 1D SE vs tree SE vs 2D SE; confirm V_alpha, g_alpha, 2m definitions
+- [ ] Sign convention: lower entropy = more confident/structured; higher = uncertain/noisy
+- [ ] K-constraint: free-k minimization or fixed-K? (free-k over-segments heterogeneous graphs)
+- [ ] Reference implementation: use selib as cross-check to validate entropy computation independently
+
+Failure to match the paper on graph construction is the most common cause of null results in SE reproduction. The SE formula is rarely wrong; the graph is almost always the problem.
+
 ## 4. Implementation Plan
 
 For a repo:
@@ -97,3 +112,7 @@ Use relevant citations:
 - Rosvall & Bergstrom 2008 for map-equation-style stochastic hierarchy/community search.
 - Li 2024 for AI Science, encoding trees, strategy, decoding information, and 5D cognition when agent modeling is central.
 - Su et al. 2025 survey for taxonomy and modern SE applications such as LSENet, SEP, SISA, SEGA, DeSE, Hi-PART, HCSE, SLED, or SIT-HSS.
+- selib (github.com/SuuTTT/structural-entropy-benchmark) for validated reference optimizers (se_louvain, se_hier, se_gnn, se_optimize_fixed_k).
+- Zhao et al. 2025 (SeSE, UAI 2026 Oral) for LLM UQ with directed semantic-graph SE.
+- Pan et al. 2025 (HCSE) for two-level Louvain + tree SE construction used in SISA/SISL/SeSE long-form.
+- Farquhar et al. 2024 (semantic entropy) as the baseline to beat in LLM UQ proposals.

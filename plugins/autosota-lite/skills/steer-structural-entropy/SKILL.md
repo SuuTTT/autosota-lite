@@ -1,6 +1,6 @@
 ---
 name: structural-entropy-proposal
-description: Use when asked to propose, design, or assess an integration of Structural Information Theory, Structural Entropy (SE), encoding trees, decoding information, or SE-based hierarchy discovery in a baseline AI paper, codebase, repository, model, algorithm, or experiment. Helps agents inspect a project and produce a rigorous SE integration proposal with math, implementation options, experiments, risks, and citations.
+description: Use when asked to propose, design, or assess an integration of Structural Information Theory, Structural Entropy (SE), encoding trees, decoding information, or SE-based hierarchy discovery in a baseline AI paper, codebase, repository, model, algorithm, or experiment. Also applicable when the project involves LLM uncertainty quantification (hallucination detection, AUROC over semantic similarity graphs), skill learning from demonstrations, or bioinformatics (Hi-C TAD calling, chromatin hierarchy). Helps agents inspect a project and produce a rigorous SE integration proposal with math, implementation options, experiments, risks, and citations.
 metadata:
   short-description: Propose SE integrations for AI projects
 ---
@@ -49,6 +49,8 @@ Use this skill to turn a baseline paper, repo, or AI method into a concrete prop
 - For repos, inspect code before proposing file-level edits. Match existing model, data, and training abstractions.
 - For papers, distinguish directly supported claims from hypotheses inferred from the SE framework.
 - If current citations or paper details are needed, browse or use scholarly sources rather than relying on memory.
+- **Faithfulness check:** verify graph construction matches the referenced paper spec before any other analysis. Mismatched graph type (directed vs undirected), edge semantics (cosine-sim vs NLI entailment), or tree construction operators are the leading cause of null results in SE integrations. Run the faithfulness checklist in `references/proposal-template.md` section 3b.
+- **Honest null reporting:** if a proposed SE integration has been attempted and produced a null result (SISA, SISL, SIRD, SI2E on hard tasks), report this context alongside the proposal; do not restate the method as untested.
 
 ## Reference Files
 
