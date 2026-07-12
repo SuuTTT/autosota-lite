@@ -49,6 +49,7 @@ Skill organization by purpose. **Find your paper's skills in seconds.**
 | `code-reverse-engineering` | Analyze & reimplement research code (architectural) |
 | `paper-result-logger` | Log experiment results |
 | `paper-result-aggregator` | Summarize & compare results |
+| `lab-notebook-blog` | Write an active-tracks lab-notebook blog post |
 
 **When to use:**
 - Writing methods? → `paper-writer`
@@ -56,6 +57,7 @@ Skill organization by purpose. **Find your paper's skills in seconds.**
 - Reimplementing code cleanly? → `code-reverse-engineering`
 - Recording experiment metrics? → `paper-result-logger`
 - Creating result tables? → `paper-result-aggregator`
+- Explaining every active track publicly, from scratch? → `lab-notebook-blog`
 
 ---
 
@@ -73,6 +75,20 @@ Skill organization by purpose. **Find your paper's skills in seconds.**
 - Want automated end-to-end pipeline? → `sota-workflow-orchestrator`
 - Need to compare metrics? → `sota-compare-metrics`
 - Further optimization after reimplementation? → `optimize-reimplementation`
+
+---
+
+## 🤝 Collaboration (Cross-Agent Coordination)
+
+**Goal:** Let independent agents build against each other's work safely
+
+| Skill | Purpose |
+|-------|---------|
+| `cross-agent-collab` | Coordinate two agents via oracle artifacts, validators, and issue + fix-branch feedback |
+
+**When to use:**
+- Another agent must implement against your reference data/judge? → `cross-agent-collab`
+- You must implement against another agent's oracle and prove conformance? → `cross-agent-collab`
 
 ---
 
@@ -121,6 +137,8 @@ Skill organization by purpose. **Find your paper's skills in seconds.**
 | **Reimplement code cleanly** | **`code-reverse-engineering`** |
 | Log experiment results | `paper-result-logger` |
 | Compare all results | `paper-result-aggregator` |
+| Blog every active track from scratch | `lab-notebook-blog` |
+| Coordinate with another autonomous agent | `cross-agent-collab` |
 | Make code faster | `optimize-reimplementation` |
 | Manage API keys safely | `util-key-manager` |
 | Notify team on Slack | `util-notifier` |
@@ -140,6 +158,8 @@ paper-*         Writing, analysis, results
 optimize-*      Code & iteration optimization
 util-*          Infrastructure & utilities
 ```
+
+Unprefixed skills: `lab-notebook-blog` (public write-ups), `cross-agent-collab` (cross-agent coordination).
 
 **To find a skill:** Look for the prefix that matches your task category.
 

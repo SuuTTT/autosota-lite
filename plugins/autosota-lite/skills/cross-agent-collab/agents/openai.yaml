@@ -1,0 +1,7 @@
+interface:
+  display_name: "Cross-Agent Collaboration"
+  short_description: "Coordinate two agents via oracle artifacts + verification"
+  default_prompt: "Use $cross-agent-collab to set up a producer/consumer handshake between two autonomous agents using versioned oracle artifacts, a validator, and issue + fix-branch feedback."
+
+policy:
+  allow_implicit_invocation: true

@@ -1,0 +1,7 @@
+interface:
+  display_name: "Lab Notebook Blog Post"
+  short_description: "Write an active-tracks lab-notebook blog post"
+  default_prompt: "Use $lab-notebook-blog to write a lab-notebook blog post explaining every active track of this research project from scratch and publish it on the project's Pages."
+
+policy:
+  allow_implicit_invocation: true
