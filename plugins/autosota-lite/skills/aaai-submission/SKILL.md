@@ -37,13 +37,18 @@ This skill distills a real campaign where the abstract went through five drafts 
    - **No LaTeX `---`/`--` em-dash notation in the pasted text** — it appears literally as hyphens. Use the actual em-dash `—`. (The `.tex` file keeps `---`; only the copy-ready plain-text/markdown version is converted.)
    - **Title: strip identifying prefixes** — the model/system name in a double-blind title is deanonymizing; use the descriptive title only.
 
-6. **Run the double-blind hygiene check on the paper PDF/source.**
+6. **Use the venue's official template — not a placeholder — and verify compile with it.**
+   - Download the current **author kit / style file** from the venue's site (AAAI: `aaai2027.sty` + `aaai2027.bst` from the AAAI-27 Author Kit link; it is *not* on CTAN — author-kit only). Do not ship on a stand-in template (IEEEtran/NeurIPS/generic `article`): the required preamble, citation style (AAAI = `natbib` + `aaai.bst`, author-year — not IEEEtran numeric `\cite`), fonts (`times`/`helvet`/`courier`), `\pdfinfo{ /TemplateVersion (...) }`, and the `\author{}`/`\affiliations{}` block all differ, and a placeholder silently violates format.
+   - Convert the preamble the moment the kit exists; if the kit isn't out yet, format to the venue's *stable* spec (AAAI's has been unchanged for years) so dropping in the `.sty` is the only remaining step — and say so explicitly, because the paper will not compile until the style file is present.
+   - **Verify with the real `.sty`**: it compiles, citations render correctly under the new style, and the **page count meets the venue limit** (AAAI: 7 pages of body + unlimited references + the mandatory reproducibility checklist — count with the actual template, not the placeholder, since column geometry differs). The abstract deadline needs only the text fields (no PDF); the full-paper deadline needs the compiled template — do the swap before then, not after.
+
+7. **Run the double-blind hygiene check on the paper source/build.**
    - No author names, affiliations, or acknowledgements in the submission build.
    - No identifying URLs (a GitHub username in a repo link deanonymizes even a private repo) — replace with "anonymized supplementary."
    - No "our prior work [self-cite]" phrasing; no leftover venue names from a previous submission target.
-   - Confirm the build compiles and the page/format limits are met for the *target* venue's style file (swap placeholder templates before the deadline, not after).
+   - AAAI submission mode (`\usepackage[submission]{aaai2027}`) suppresses authors and adds line numbers; keep the `\author{}`/`\affiliations{}` commands present (with placeholders) even when anonymous.
 
-7. **Emit the artifact + submit instructions.**
+8. **Emit the artifact + submit instructions.**
    - One HTML page, click-to-copy blocks per field, char counts, theme-aware, self-contained.
    - Include: which fields still need author action (e.g., "4 co-authors each need an OpenReview profile linked"), the abstract-vs-full-paper deadline split (abstract days before the PDF), and the exact OpenReview navigation.
    - Keep the artifact synced: every time the paper abstract changes, re-verify numbers and re-publish to the *same* URL.
