@@ -1,6 +1,6 @@
 ---
 name: design-ai-paper-figures
-description: "Design, redraw, or audit the first two figures of an AI/ML conference paper: an intuitive Figure 1 motivation/problem overview and an informative Figure 2 method/framework/architecture figure. Use for AAAI, NeurIPS, ICML, ICLR, CVPR, ACL, ACM, IEEE, or journal manuscripts when Codex must produce conference-grade, paper-scale visuals; editable PowerPoint masters; PDF/PNG exports; LaTeX-ready figures; or improve figures that look like generic flowcharts, software diagrams, slide infographics, or AI-generated art."
+description: "Design, redraw, audit, or prepare a production handoff for the first two figures of an AI/ML conference paper: an intuitive Figure 1 motivation/problem overview and an informative Figure 2 method/framework/architecture figure. Use for AAAI, NeurIPS, ICML, ICLR, CVPR, ACL, ACM, IEEE, or journal manuscripts when an AI agent or researcher needs conference-grade paper visuals, editable PowerPoint masters, PDF/PNG exports, LaTeX-ready figures, or a self-contained prompt for a presentation-capable tool. Adapt the workflow to the agent's image-generation, presentation-control, rendering, and file-editing capabilities."
 ---
 
 # Design AI Paper Figures
@@ -11,6 +11,28 @@ Create a coordinated figure pair with different jobs:
 - **Figure 2 earns trust:** expose the proposed method's actual novelty, information flow, and outputs.
 
 Treat these roles as defaults. If the target venue or paper uses a different figure order, preserve the roles while adapting the numbering.
+
+## Route By Available Capabilities
+
+Inspect the current agent's actual tools before promising artifacts. Determine whether the environment has:
+
+- **presentation control:** create and edit native PowerPoint or an equivalent slide format;
+- **image generation:** create or edit raster assets;
+- **render/export:** render slides and export PDF/PNG;
+- **file and manuscript access:** read the paper, evidence, and venue template.
+
+Do not assume a branded tool, plugin, GUI, or API exists. Choose the first matching route:
+
+1. **Presentation control + image generation:** build the editable master and generate only the isolated visual assets that need it.
+2. **Presentation control without image generation:** build with native shapes, text, plots, and real paper assets. For any missing illustrative asset, add a clearly marked placeholder and provide a precise asset-generation prompt; do not fabricate the image.
+3. **Image generation without presentation control:** generate isolated assets only when useful, then produce a complete assembly prompt for a presentation-capable tool. Do not claim that an editable deck was created. Put the fenced handoff prompt before any optional asset summary.
+4. **Neither capability, including a text-only or CLI agent:** analyze the science and formulate both figure briefs, but place those briefs inside the self-contained production prompt. The response format is: one sentence naming the missing capability; the complete fenced prompt; one sentence asking the user to run it in a presentation-capable environment and attach the listed inputs. Do not output standalone briefs, ASCII layouts, recommendations, evidence ledgers, or unresolved questions before the prompt.
+
+If rendering is unavailable, do not claim visual QA passed. Include the unperformed QA steps in the handoff.
+
+Read [Capability routing and handoff](references/capability-routing-and-handoff.md) whenever the full editable-master route is unavailable.
+
+**Hard completion check for routes 3 and 4:** the first substantive deliverable must be a fenced block whose first line is exactly `You are designing two coordinated, conference-grade figures for an AI/ML paper.` Copy and fill the production prompt template from the handoff reference. Put the figure briefs, evidence ledger, unresolved items, asset prompts, and QA instructions inside that block. Before returning, verify that exact first line exists inside a code fence.
 
 ## Read Before Designing
 
@@ -75,7 +97,7 @@ Avoid "box soup": many equally weighted rounded rectangles connected by arrows. 
 
 ## Build An Editable Master
 
-Use the Presentations skill for PPTX creation and follow [Editable PowerPoint construction](references/editable-powerpoint.md).
+When presentation control is available, use its native shape, text, connector, media, and export operations and follow [Editable PowerPoint construction](references/editable-powerpoint.md). Do not require a specific vendor or agent platform.
 
 Required deliverables unless the user narrows the request:
 
@@ -85,7 +107,9 @@ Required deliverables unless the user narrows the request:
 - concise captions and optional `figure*.tex` wrappers;
 - a source/evidence ledger for nontrivial visual assets and displayed values.
 
-Keep all labels, arrows, shapes, and simple plots editable. Use a raster asset only for a real example or a semantic illustration that cannot reasonably be reconstructed. Never place a generated full-figure image into PowerPoint and call it editable. If image generation helps establish a visual concept, regenerate individual isolated elements on transparent backgrounds and rebuild the composition with native shapes and text.
+Keep all labels, arrows, shapes, and simple plots editable. Use a raster asset only for a real example or a semantic illustration that cannot reasonably be reconstructed. Never place a generated full-figure image into PowerPoint and call it editable. If image generation is available and helps establish a visual concept, generate individual isolated elements on transparent backgrounds and rebuild the composition with native shapes and text.
+
+When presentation control is unavailable, do not substitute an uneditable mockup for the required master. Return the production handoff defined in [Capability routing and handoff](references/capability-routing-and-handoff.md).
 
 ## Apply Conference Styling
 
@@ -100,7 +124,7 @@ Keep all labels, arrows, shapes, and simple plots editable. Use a raster asset o
 
 ## Validate At Paper Scale
 
-Follow [Paper-scale QA](references/paper-scale-qa.md). At minimum:
+When rendering and manuscript compilation are available, follow [Paper-scale QA](references/paper-scale-qa.md). At minimum:
 
 1. render the PPTX and inspect every slide;
 2. export and inspect the PDF at final manuscript width;
@@ -111,7 +135,7 @@ Follow [Paper-scale QA](references/paper-scale-qa.md). At minimum:
 7. inspect the full page, not only the standalone figure;
 8. ask whether a reviewer can state Figure 1's problem and Figure 2's novelty after a five-second glance.
 
-Iterate until the figures pass both visual QA and scientific-content QA. Do not deliver a first draft merely because it compiles.
+Iterate until the figures pass both visual QA and scientific-content QA. Do not deliver a first draft merely because it compiles. If the current environment cannot perform a check, mark it pending and include it verbatim in the handoff prompt.
 
 ## Report The Result
 
@@ -122,3 +146,5 @@ State:
 - the source of any external image or displayed number;
 - the manuscript pages visually checked;
 - any unresolved scientific or venue-compliance concern.
+
+For a handoff-only route, state clearly that no editable figure was produced, name the missing capability, and present the complete prompt in one fenced block that the user can submit to a capable tool without reconstructing hidden context. Fill unknown scientific details with explicit `TODO: confirm ...` instructions inside the prompt rather than omitting the prompt. End by asking the user to run that prompt in a presentation-capable environment and attach the listed inputs. Treat a response without the exact fenced-prompt first line from the hard completion check as a failed execution of this skill.

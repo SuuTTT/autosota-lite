@@ -2,9 +2,9 @@
 
 ## Master Artifact
 
-Treat the PPTX as the editable source of truth. Use one slide per figure and set the slide aspect ratio close to the intended paper figure. Do not design on a generic 16:9 slide and leave large unused margins.
+Treat the PPTX, or an equivalent native presentation document, as the editable source of truth. Use one slide per figure and set the slide aspect ratio close to the intended paper figure. Do not design on a generic 16:9 slide and leave large unused margins.
 
-Use the Presentations skill and its required artifact-tool workflow. Preserve source code for deterministic regeneration.
+Use whichever native presentation-control interface is available. Preserve source code, structured edit instructions, or the native document history needed for deterministic regeneration. Do not assume a specific agent, plugin, or vendor.
 
 ## Editable Elements
 
@@ -22,7 +22,9 @@ Create connectors before nodes so edges remain behind shapes. Snap repeated obje
 
 Use real paper evidence for domain examples when available. Crop non-destructively and retain the unmodified source in the build workspace.
 
-Use generated imagery only for a semantic object that cannot be represented faithfully with shapes. Generate each object separately on a transparent background. Do not generate labels, arrows, equations, plots, or the entire composition as one bitmap.
+When image generation is available, use it only for a semantic object that cannot be represented faithfully with shapes. Generate each object separately on a transparent background. Do not generate labels, arrows, equations, plots, or the entire composition as one bitmap.
+
+When image generation is unavailable, prefer real paper assets and native shapes. If an essential illustrative asset is still missing, leave a labeled placeholder and provide an asset prompt containing subject, scientific meaning, viewpoint, crop, aspect ratio, palette, transparency, exclusions, and required resolution.
 
 Prefer vector PDF/SVG for equations, plots, icons, and scientific diagrams. Keep their source data or LaTeX beside the build script. If a complex equation cannot remain editable, keep it vector and record its exact LaTeX source.
 
