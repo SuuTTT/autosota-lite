@@ -40,6 +40,11 @@ Plugin skill directories should remain direct children of `plugins/autosota-lite
 
 ## Writing & Publication
 
+**Academic Figure Design:**
+- `design-ai-paper-figures`: coordinated conference-grade Figure 1 motivation
+  and Figure 2 method design, with editable PowerPoint masters, LaTeX-ready
+  exports, evidence checks, and paper-scale visual QA.
+
 **Rhetorical & Structural Analysis:**
 - `scientific-writing-reverse-engineering`: model-paper reverse-engineering for sentence-by-sentence rhetorical function analysis; generates writing maps without plagiarism.
 - `scientific_writing_reverse_engineering_skill`: enhanced variant with editable review workbench, rendering tools, and example outputs.
@@ -75,4 +80,3 @@ skills/
 references/
   skill-map.md
 ```
-

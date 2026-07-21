@@ -1,0 +1,4 @@
+interface:
+  display_name: "Design AI Paper Figures"
+  short_description: "Create conference-grade motivation and method figures"
+  default_prompt: "Use $design-ai-paper-figures to design editable Figure 1 and Figure 2 for my AI conference paper."
