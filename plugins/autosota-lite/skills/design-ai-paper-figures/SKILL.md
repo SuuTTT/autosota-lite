@@ -1,16 +1,19 @@
 ---
 name: design-ai-paper-figures
-description: "Design, redraw, audit, or prepare a production handoff for the first two figures of an AI/ML conference paper: an intuitive Figure 1 motivation/problem overview and an informative Figure 2 method/framework/architecture figure. Use for AAAI, NeurIPS, ICML, ICLR, CVPR, ACL, ACM, IEEE, or journal manuscripts when an AI agent or researcher needs conference-grade paper visuals, editable PowerPoint masters, PDF/PNG exports, LaTeX-ready figures, or a self-contained prompt for a presentation-capable tool. Adapt the workflow to the agent's image-generation, presentation-control, rendering, and file-editing capabilities."
+description: "Design, redraw, audit, or prepare production handoffs for AI/ML paper figures: Figure 1 motivation, Figure 2 method/architecture, and quantitative experiment plots or multi-panel evidence figures. Use for AAAI, NeurIPS, ICML, ICLR, CVPR, ACL, ACM, IEEE, or journals when users need editable conceptual diagrams, reproducible Python/R plots, source-data traceability, exact column-width sizing, vector PDF/SVG exports, PNG previews, LaTeX integration, or paper-scale visual QA."
 ---
 
 # Design AI Paper Figures
 
-Create a coordinated figure pair with different jobs:
+Create a coordinated visual system. The first two conceptual figures have different jobs:
 
 - **Figure 1 earns attention:** explain the task, failure, or scientific motivation in one glance.
 - **Figure 2 earns trust:** expose the proposed method's actual novelty, information flow, and outputs.
 
 Treat these roles as defaults. If the target venue or paper uses a different figure order, preserve the roles while adapting the numbering.
+
+For data-driven figures, use a separate evidence-plot route. Do not force
+architecture diagrams and quantitative plots through the same construction tool.
 
 ## Route By Available Capabilities
 
@@ -53,6 +56,7 @@ Read these references as needed:
 - [Figure 2 patterns](references/figure-2-method.md)
 - [Editable PowerPoint construction](references/editable-powerpoint.md)
 - [Paper-scale QA](references/paper-scale-qa.md)
+- [Quantitative plots](references/quantitative-plots.md)
 
 ## Write Two Figure Briefs
 
@@ -67,6 +71,11 @@ Before drawing, write a compact brief for each figure containing:
 - **size:** target width and aspect ratio in the manuscript.
 
 Reject a brief if Figure 1 and Figure 2 tell the same story or reuse the same composition.
+
+For every quantitative figure, replace the two-figure brief with a **figure
+contract**: conclusion, evidence hierarchy, panel archetypes, source-data fields,
+exclusions and transformations, uncertainty semantics, comparison fairness,
+target dimensions, and export formats.
 
 ## Design Figure 1: Motivation
 
@@ -95,6 +104,27 @@ Make Figure 2 sufficiently technical that a reviewer can reconstruct the method'
 
 Avoid "box soup": many equally weighted rounded rectangles connected by arrows. See the Figure 2 reference for architecture-specific patterns.
 
+## Design Quantitative Plots
+
+Read [Quantitative plots](references/quantitative-plots.md) whenever a figure is
+derived from experiment data.
+
+1. Select the chart from the scientific comparison, not from aesthetics.
+2. Trace every point, bar, interval, annotation, and sample count to source data.
+3. Record filters, exclusions, aggregation, smoothing, seeds, and error-bar meaning.
+4. Preserve all observations unless an explicit, reported rule excludes them.
+5. Size the canvas at the final LaTeX column or page width before styling.
+6. Prefer vector PDF/SVG for lines, text, and shapes; emit 300 dpi PNG only as a preview or raster fallback.
+7. Keep the plotting script, source-data mapping, and output deterministic and editable.
+8. Remove in-plot titles for manuscript figures unless the venue requires them; let the caption carry the claim.
+9. Use colorblind-safe colors plus redundant line styles, markers, hatches, or labels.
+10. Compile the plot into the manuscript and inspect it at normal reading scale.
+
+SciencePlots or another style package may provide a useful baseline, but never let
+a preset override the measured manuscript width, font legibility, or semantic
+encoding. A reproducible plain-Matplotlib/R script is preferable to an attractive
+but opaque artifact.
+
 ## Build An Editable Master
 
 When presentation control is available, use its native shape, text, connector, media, and export operations and follow [Editable PowerPoint construction](references/editable-powerpoint.md). Do not require a specific vendor or agent platform.
@@ -106,6 +136,9 @@ Required deliverables unless the user narrows the request:
 - 300 dpi `.png` previews;
 - concise captions and optional `figure*.tex` wrappers;
 - a source/evidence ledger for nontrivial visual assets and displayed values.
+
+For quantitative plots, also deliver the runnable plotting script, a source-data
+field map, aggregation/exclusion notes, and deterministic PDF/SVG plus PNG preview.
 
 Keep all labels, arrows, shapes, and simple plots editable. Use a raster asset only for a real example or a semantic illustration that cannot reasonably be reconstructed. Never place a generated full-figure image into PowerPoint and call it editable. If image generation is available and helps establish a visual concept, generate individual isolated elements on transparent backgrounds and rebuild the composition with native shapes and text.
 
@@ -120,6 +153,8 @@ When presentation control is unavailable, do not substitute an uneditable mockup
 - Avoid slide-title banners, UI cards, pills, gradients, shadows, decorative blobs, and clip-art aesthetics.
 - Use sentence case and short labels. Avoid prose paragraphs inside the figure.
 - Size text for the final printed figure, not for a full-screen slide.
+- Obtain the actual `\columnwidth` or `\textwidth` from the target LaTeX build;
+  do not guess a generic conference width.
 - Match notation, terminology, colors, and object identity across both figures.
 
 ## Validate At Paper Scale
@@ -134,6 +169,10 @@ When rendering and manuscript compilation are available, follow [Paper-scale QA]
 6. insert both figures into the paper and compile the affected pages;
 7. inspect the full page, not only the standalone figure;
 8. ask whether a reviewer can state Figure 1's problem and Figure 2's novelty after a five-second glance.
+
+For plots, additionally verify axis units, interval definitions, sample counts,
+shared scales, font embedding, vector editability, legend order, and that grayscale
+or color-vision simulation preserves every comparison.
 
 Iterate until the figures pass both visual QA and scientific-content QA. Do not deliver a first draft merely because it compiles. If the current environment cannot perform a check, mark it pending and include it verbatim in the handoff prompt.
 

@@ -40,19 +40,30 @@ Plugin skill directories should remain direct children of `plugins/autosota-lite
 
 ## Writing & Publication
 
+**Integrated Paper Polish:**
+- `aaai-paper-polish-suite`: routes an existing paper through evidence freeze,
+  contribution-family writing polish, conceptual and quantitative figure design,
+  paper-scale QA, and AAAI/OpenReview submission audit.
+
 **Academic Figure Design:**
-- `design-ai-paper-figures`: coordinated conference-grade Figure 1 motivation
-  and Figure 2 method design, with editable PowerPoint masters, LaTeX-ready
-  exports, evidence checks, paper-scale visual QA, and capability-aware prompts
-  for agents that cannot generate images or control presentation software.
+- `design-ai-paper-figures`: coordinated Figure 1/Figure 2 design plus
+  reproducible quantitative plots, editable masters, vector exports, source-data
+  checks, exact manuscript-width sizing, and paper-scale visual QA.
 
 **Rhetorical & Structural Analysis:**
-- `scientific-writing-reverse-engineering`: model-paper reverse-engineering for sentence-by-sentence rhetorical function analysis; generates writing maps without plagiarism.
+- `scientific-writing-reverse-engineering`: contribution-family rhetorical and
+  aggregate-style modeling for auditing and polishing author-written prose without
+  copying exemplar wording.
 - `scientific_writing_reverse_engineering_skill`: enhanced variant with editable review workbench, rendering tools, and example outputs.
 
 **Paper & Report Generation:**
 - `autosota-paper-writer`: manuscripts, human-readable reports, and research paper drafting grounded in experimental results.
 - `autosota-common-publisher`: blog posts, release notes, short-form social content, and TikTok-style scripts from validated results.
+
+**Submission:**
+- `aaai-submission`: live-form-driven AAAI/OpenReview field and file audit,
+  including author profiles, reciprocal reviewer, checklist, supplement limits,
+  anonymity, and the prohibition on external paper-source/data repository links.
 
 ## Common Operations & Infrastructure
 

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Scientific Writing Reverse Engineering"
+  short_description: "Model and polish evidence-shaped scientific prose"
+  default_prompt: "Use $scientific-writing-reverse-engineering to build a writing model and polish my author-written paper without copying exemplar wording."

@@ -15,6 +15,8 @@ Primary categories:
 - Optimization: `autosota-agent-ideator`, `autosota-human-idea-ingest`, `structural-entropy-proposal`.
 - Common operations: key management, result logging, notifications, Vast.ai.
 - Writing and publishing: paper writing, scientific writing reverse engineering, external-facing publishing.
+- Final paper polish: `aaai-paper-polish-suite` coordinates writing-model polish,
+  conceptual and quantitative figure work, and live AAAI/OpenReview submission QA.
 
 ## Runtime and Vast.ai cost estimator skill
 
