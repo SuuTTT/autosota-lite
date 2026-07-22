@@ -93,30 +93,26 @@ Design choices to specify:
 
 For directed graphs, replace degree and volume with stationary-distribution mass from a random walk:
 
-1. Compute transition matrix `P`: `P[i,j] = W[i,j] / sum_k W[i,k]`.
-2. Solve for the stationary distribution `π` (left eigenvector for eigenvalue 1; normalize so `sum_i π_i = 1`).
-3. Define flow matrix `F[i,j] = π_i * P[i,j]`.
-4. Replace `d_i / 2m → π_i` in 1D SE, and `V_alpha / 2m → sum_{i in alpha} π_i`, `g_alpha / 2m → sum_{i in alpha, j not in alpha} F[i,j]` in tree SE.
+1. Define a documented dangling-node and irreducibility policy. Use an adjusting operator or explicit teleportation when the directed graph is not strongly connected.
+2. Compute transition matrix `P`: `P[i,j] = W[i,j] / sum_k W[i,k]`.
+3. Solve for the stationary distribution `π` (left eigenvector for eigenvalue 1; normalize so `sum_i π_i = 1`) and verify residual and convergence tolerances.
+4. Define flow matrix `F[i,j] = π_i * P[i,j]`.
+5. Replace `d_i / 2m → π_i` in 1D SE, and `V_alpha / 2m → sum_{i in alpha} π_i`, `g_alpha / 2m → sum_{i in alpha, j not in alpha} F[i,j]` in tree SE.
 
 This formulation is used by SeSE (Zhao et al. 2025) for LLM semantic graphs where edges carry asymmetric NLI-entailment probabilities. The undirected approximation can flip the entropy ordering. Always state which formulation the proposal uses.
 
 ## B. HCSE (Hierarchical Community Structural Entropy) and selib
 
-HCSE (Pan et al. 2025) is a two-level construction:
+HCSE (Pan, Zheng, and Fan 2021) is a variable-depth hierarchical-clustering algorithm. It builds a binary cluster tree with a structural-entropy-guided **stretch** operation, identifies a sparse level, and recursively **compresses** the tree. It is not a two-level Louvain construction. Do not substitute Louvain community aggregation while citing HCSE.
 
-- Phase 1: Run Louvain to obtain an initial community partition `C`.
-- Phase 2: Build a module-level graph from `C`, then compute `H_T` where the internal node is the community level and leaves are base nodes.
-
-HCSE is used in SISA (state abstraction), SISL (skill learning), and SeSE (long-form claim graphs).
-
-**selib** (Su et al. 2025) is a pip-installable library of standardized SE optimizers cross-validated to 1.8e-15 against a reference implementation:
+**selib** is a pip-installable library of standardized SE optimizers with machine-precision cross-checks against independent implementations:
 
 - `se_louvain`: multilevel 2D-SE minimizer; beats CoDeSEG (WWW 2025) and deDoc on all 6 benchmark graphs.
 - `se_hier`: encoding-tree optimizer warm-started from Paris; reaches lower `H_T` than both BBM and HCSE on every graph tested.
 - `se_gnn`: differentiable 2D-SE with Sinkhorn balanced-assignment head; prevents the cluster collapse that pure SE minimization induces.
 - `se_optimize_fixed_k`: K-constrained optimizer; lifts ARI from 0.53 to 0.77 on LFR at μ=0.3 and recovers karate-club two-faction split at ARI 0.88 vs free-k ARI 0.29.
 
-Cite selib alongside the survey: github.com/SuuTTT/structural-entropy-benchmark.
+Cite the implementation as `github.com/SuuTTT/selib`; use `github.com/SuuTTT/structural-entropy-benchmark` for the benchmark evidence and result provenance.
 
 ## Resolution Control: Free-k Over-Segmentation
 
@@ -134,7 +130,7 @@ SE is only as good as the graph it receives. Empirical finding from SeSE LLM UQ 
 - Using cosine-similarity sentence-embedding edges: all verbose LLM answers cluster together → entropy near-constant → no discriminative signal.
 - Using directed NLI-entailment edges (matching the paper spec): confident answers concentrate in one dense module (low SE) while hallucinating answers fragment into disconnected modules → strong signal; faithful SeSE beats semantic-entropy baseline by 0.07–0.16 AUROC across 3 datasets.
 
-Lesson: inspect and validate the graph-construction step before attributing results to the SE formula. A faithful paper-code match on the graph definition is the primary predictor of whether the integration will work.
+Lesson: inspect and validate graph construction before attributing results to the SE formula. Then test task alignment separately: a faithful and compressible graph can still encode structure unrelated to downstream utility.
 
 ## References To Cite
 
@@ -142,5 +138,5 @@ Lesson: inspect and validate the graph-construction step before attributing resu
 - Rosvall, M., & Bergstrom, C. T. (2008). Maps of random walks on complex networks reveal community structure. PNAS.
 - Li, Angsheng (2024). Artificial Intelligence Science: The Mathematical Principles of Intelligence.
 - Su, D., et al. (2025). A Survey of Structural Entropy: Theory, Methods, and Applications. IJCAI.
-- Pan, Y., et al. (2025). HCSE: Hierarchical Community Structural Entropy for Graphs.
-- Zhao, Y., et al. (2025). SeSE: Semantic Structural Entropy for LLM Uncertainty Quantification. UAI 2026 Oral.
+- Pan, Y., Zheng, F., & Fan, B. (2021). An Information-theoretic Perspective of Hierarchical Clustering.
+- Zhao, X., et al. (2025). SeSE: A Structural Information-Guided Uncertainty Quantification Framework for Hallucination Detection in LLMs. arXiv:2511.16275. Verify venue status from a primary source before naming a venue.

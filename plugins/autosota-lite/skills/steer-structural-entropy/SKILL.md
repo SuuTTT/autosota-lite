@@ -22,7 +22,14 @@ Use this skill to turn a baseline paper, repo, or AI method into a concrete prop
    - Decide whether the integration uses discrete SE optimization, a fast stochastic heuristic, or differentiable soft assignment.
    - Use [references/math-and-algorithms.md](references/math-and-algorithms.md) when formulas, operators, or reproducible calculation details are needed.
 
-3. **Choose the integration paradigm**
+3. **Pass the task-graph alignment gate**
+   - State what one random-walk step means in the target domain and why compressing that walk should preserve information needed by the task metric.
+   - Distinguish graph structure from task-useful structure. Low `H_T(G)` proves compressibility, not downstream utility.
+   - Choose the graph scale explicitly: per example, temporal/event, corpus, model-latent, or environment-transition graph.
+   - Test whether SE adds conditional value beyond raw degree, affinity, dispersion, and matched clustering features before proposing a larger model.
+   - Use [references/failure-triage.md](references/failure-triage.md) for alignment gates, null diagnosis, controls, and confirmation discipline.
+
+4. **Choose the integration paradigm**
    - For graph representation learning or GNN pooling, consider SE-guided pooling or hierarchy construction.
    - For contrastive learning, use an SE-stable anchor view or SE-aware augmentation policy.
    - For RL, use SE state abstraction, SE intrinsic motivation, or SE-based option discovery.
@@ -30,7 +37,7 @@ Use this skill to turn a baseline paper, repo, or AI method into a concrete prop
    - For end-to-end neural methods, use differentiable SE with a soft assignment matrix and add an SE regularizer or hierarchy module.
    - Use [references/integration-patterns.md](references/integration-patterns.md) for concrete patterns and proposal language.
 
-4. **Write the proposal**
+5. **Write the proposal**
    Include:
    - Baseline summary and the specific limitation SE addresses.
    - SE formulation: graph construction, encoding tree, entropy objective, and decoding information if useful.
@@ -50,10 +57,13 @@ Use this skill to turn a baseline paper, repo, or AI method into a concrete prop
 - For papers, distinguish directly supported claims from hypotheses inferred from the SE framework.
 - If current citations or paper details are needed, browse or use scholarly sources rather than relying on memory.
 - **Faithfulness check:** verify graph construction matches the referenced paper spec before any other analysis. Mismatched graph type (directed vs undirected), edge semantics (cosine-sim vs NLI entailment), or tree construction operators are the leading cause of null results in SE integrations. Run the faithfulness checklist in `references/proposal-template.md` section 3b.
+- **Task-alignment check:** do not infer that a lower structural entropy improves the target metric. State and test the mechanism connecting random-walk compressibility to task utility, with matched non-SE controls.
 - **Honest null reporting:** if a proposed SE integration has been attempted and produced a null result (SISA, SISL, SIRD, SI2E on hard tasks), report this context alongside the proposal; do not restate the method as untested.
+- **Experimental firewall:** separate exploratory development from frozen confirmation. Once labels or outcomes have been inspected, do not reuse that pool as fresh confirmatory evidence.
 
 ## Reference Files
 
 - [references/math-and-algorithms.md](references/math-and-algorithms.md): SE definitions, entropy formulas, optimization operators, stochastic search, differentiable variants.
 - [references/integration-patterns.md](references/integration-patterns.md): domain-specific SE integration patterns for GNNs, contrastive learning, RL, and vision.
 - [references/proposal-template.md](references/proposal-template.md): reusable proposal outline and checklists.
+- [references/failure-triage.md](references/failure-triage.md): task alignment, executable validation, null diagnosis, and development/confirmation gates.

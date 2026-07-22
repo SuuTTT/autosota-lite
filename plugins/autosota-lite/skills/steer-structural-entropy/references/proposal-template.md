@@ -60,7 +60,20 @@ Before implementing, verify the proposed graph matches the paper spec on each di
 - [ ] K-constraint: free-k minimization or fixed-K? (free-k over-segments heterogeneous graphs)
 - [ ] Reference implementation: use selib as cross-check to validate entropy computation independently
 
-Failure to match the paper on graph construction is the most common cause of null results in SE reproduction. The SE formula is rarely wrong; the graph is almost always the problem.
+Paper-faithfulness errors are one major cause of null SE reproductions. In a new domain, also test optimizer quality, representation sufficiency, and objective-task alignment before assigning the failure to graph construction.
+
+### 3c. Task-Graph Alignment Gate
+
+Answer all items before implementation:
+
+- [ ] What does a random-walk step mean in this domain?
+- [ ] Why should a lower coding cost preserve or predict the target utility?
+- [ ] Which nuisance factors could dominate communities?
+- [ ] Why is the chosen scale appropriate: per-example, temporal/event, corpus, latent, or transition graph?
+- [ ] Does SE add information beyond raw affinities, degrees, dispersion, and matched clustering?
+- [ ] Is SE used as a diagnostic, a feature, a regularizer, or the primary objective? Do not silently move between these claims.
+
+If these questions have no falsifiable answers, use SE only as an exploratory diagnostic.
 
 ## 4. Implementation Plan
 
@@ -85,6 +98,10 @@ Minimum experiment set:
 - Ablation with random or heuristic hierarchy.
 - Sensitivity to tree depth and entropy weight.
 - Runtime/memory overhead.
+- Raw graph-statistic controls: degree, pairwise similarities, dispersion, or task-specific residual statistics.
+- A capacity-matched non-SE structural control such as Laplacian, modularity, contrastive, or spectral regularization.
+- A shape- and granularity-matched random hierarchy.
+- Source/group-disjoint development and a separately frozen fresh confirmation set.
 
 Metrics:
 
@@ -112,7 +129,7 @@ Use relevant citations:
 - Rosvall & Bergstrom 2008 for map-equation-style stochastic hierarchy/community search.
 - Li 2024 for AI Science, encoding trees, strategy, decoding information, and 5D cognition when agent modeling is central.
 - Su et al. 2025 survey for taxonomy and modern SE applications such as LSENet, SEP, SISA, SEGA, DeSE, Hi-PART, HCSE, SLED, or SIT-HSS.
-- selib (github.com/SuuTTT/structural-entropy-benchmark) for validated reference optimizers (se_louvain, se_hier, se_gnn, se_optimize_fixed_k).
-- Zhao et al. 2025 (SeSE, UAI 2026 Oral) for LLM UQ with directed semantic-graph SE.
-- Pan et al. 2025 (HCSE) for two-level Louvain + tree SE construction used in SISA/SISL/SeSE long-form.
+- selib (github.com/SuuTTT/selib) for validated reference optimizers; structural-entropy-benchmark for result provenance.
+- Zhao et al. 2025 (SeSE, arXiv:2511.16275) for LLM UQ with directed semantic-graph SE. Verify venue metadata before use.
+- Pan, Zheng, and Fan 2021 for HCSE's stretch/compress hierarchical clustering algorithm.
 - Farquhar et al. 2024 (semantic entropy) as the baseline to beat in LLM UQ proposals.
