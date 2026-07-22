@@ -40,6 +40,11 @@ Plugin skill directories should remain direct children of `plugins/autosota-lite
 
 ## Writing & Publication
 
+**Venue Selection:**
+- `recommend-ccf-venue`: evidence- and deadline-aware routing to CCF-listed or
+  strategically relevant conferences, journals, special issues, and artifact
+  tracks; verifies every live deadline and policy against official sources.
+
 **Academic Figure Design:**
 - `design-ai-paper-figures`: coordinated conference-grade Figure 1 motivation
   and Figure 2 method design, with editable PowerPoint masters, LaTeX-ready

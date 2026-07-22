@@ -1,0 +1,4 @@
+interface:
+  display_name: "Recommend CCF Venue"
+  short_description: "Rank timely CCF conferences and journals"
+  default_prompt: "Use $recommend-ccf-venue to rank the next suitable conference or journal for my paper."
