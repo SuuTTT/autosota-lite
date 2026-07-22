@@ -14,7 +14,7 @@ Primary categories:
 - Reimplementation: `autosota-reimplementation`, setup and fix skills.
 - Optimization: `autosota-agent-ideator`, `autosota-human-idea-ingest`, `structural-entropy-proposal`.
 - Common operations: key management, result logging, notifications, Vast.ai.
-- Writing and publishing: paper writing, scientific writing reverse engineering, external-facing publishing.
+- Writing and publishing: CCF venue recommendation, paper writing, scientific writing reverse engineering, external-facing publishing.
 
 ## Runtime and Vast.ai cost estimator skill
 
