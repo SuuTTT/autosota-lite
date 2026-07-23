@@ -1,0 +1,4 @@
+interface:
+  display_name: "AAAI Submission Audit"
+  short_description: "Audit fields, files, anonymity, and policies"
+  default_prompt: "Use $aaai-submission to audit my AAAI-27 fields and uploaded files for desk-rejection risks."

@@ -1,4 +1,4 @@
 interface:
   display_name: "Design AI Paper Figures"
-  short_description: "Design or hand off conference-grade paper figures"
-  default_prompt: "Use $design-ai-paper-figures to design Figure 1 and Figure 2, routing the work to the visual capabilities available in this environment."
+  short_description: "Design diagrams and reproducible paper plots"
+  default_prompt: "Use $design-ai-paper-figures to design conceptual figures and publication-ready quantitative plots for my paper."

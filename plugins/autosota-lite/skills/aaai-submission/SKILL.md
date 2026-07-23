@@ -1,82 +1,124 @@
 ---
 name: aaai-submission
-description: Use when preparing an AAAI (or any OpenReview double-blind) conference submission from an existing paper + verified results — generating the copy-ready OpenReview field package (title, TL;DR, abstract, topics, authors) and enforcing the submission discipline (every number read from the results file, framework-first framing, honest scope, double-blind hygiene, OpenReview field limits). Produces a single click-to-copy HTML artifact the author pastes into OpenReview.
-metadata:
-  short-description: Generate a verified, double-blind-clean OpenReview submission package
+description: Prepare and audit an AAAI-27 or OpenReview double-blind submission from an existing author-written paper and verified results. Use for copy-ready OpenReview fields, author/profile readiness, topic selection, reciprocal-reviewer nomination, supplement packaging, external-repository-link prohibition, reproducibility checklist checks, anonymity, file limits, and final desk-rejection-risk review.
 ---
 
-# AAAI / OpenReview Submission Package
+# AAAI / OpenReview Submission
 
-Use this skill to turn a finished paper and its results file into a **copy-paste-ready OpenReview submission** and to catch the mistakes that waste a submission slot. The output is one self-contained HTML page: each OpenReview field (Title, TL;DR, Abstract, Topics, Authors, Country) in its own click-to-copy block, with character counts, a double-blind checklist, and step-by-step submit instructions. The author does the final click.
+Prepare a submission whose claims, metadata, files, and attestations agree. Treat
+the live venue form and current author kit as authoritative; do not rely on dates,
+limits, topics, or policies remembered from an earlier year.
 
-This skill distills a real campaign where the abstract went through five drafts because of avoidable errors: fabricated numbers, single-model undersell, LaTeX `---` leaking into plain text, a 299-char TL;DR against a 250 limit, and stale claims that no longer matched the results file.
+## Read the live constraints
 
-## Workflow
+For AAAI-27, read [the captured OpenReview form](references/aaai27-openreview-form.md).
+If the live form or official author kit is available, compare it with the snapshot
+and record any difference. Never silently resolve conflicting deadlines or time
+zones. Report both sources and ask the author to verify the venue's authoritative
+deadline when they disagree.
 
-1. **Locate the two sources of truth, and only trust them.**
-   - The **paper source** (`main.tex`) for the claims and framing.
-   - The **results file** (`audit.json`, `results.json`, harvested `metrics.npy` — whatever the project treats as ground truth) for every number.
-   - Never take a number from the paper prose, a prior summary, memory, or a chat message. Papers drift from their own tables; results files do not.
+## Establish sources of truth
 
-2. **Verify every quantitative claim in the abstract/TL;DR against the results file (verification discipline).**
-   - Re-compute each headline number in code from the results file (gains as `(baseline-ours)/baseline`, "wins N/M cells", "up to X%"). Print expected vs. claimed.
-   - This is the single highest-value step. Projects fabricate or drift numbers repeatedly; a reviewer *will* recompute from released data. One wrong bolded number in an abstract is a credibility hit that outweighs any polish.
-   - If a claim can't be traced to the results file, cut it or mark it "in flight" — do not ship it.
+Use:
 
-3. **Frame framework-first, not single-model.**
-   - If the contribution is a *mechanism* that generalizes (e.g., a mask/module that drops into multiple backbones), the abstract must lead with the mechanism, not "we tweak model X." "We replace X's attention with Y" reads as a minor delta; "Y is a backbone-agnostic mechanism; it drops unchanged into three backbones and X of Y cells beat every baseline" reads as a contribution.
-   - Enumerate the instantiations and the strongest *aggregate* claim the results support (per-cell best across all baselines, not just "beats one backbone").
+1. the paper source and compiled submission PDF for wording, claims, anonymity,
+   page count, and self-containment;
+2. result artifacts for every quantitative claim;
+3. the live OpenReview form for fields, cardinalities, file channels, and limits;
+4. the current official author kit for template and checklist requirements;
+5. author-confirmed profile, conflict, simultaneous-submission, and reciprocal-
+   reviewer information.
 
-4. **State scope honestly — report the boundary as a finding.**
-   - If the method wins on some data regimes and loses on others, say where and why. A scoped, mechanism-explained result ("SOTA on datasets with a real local dependency graph; reduces to the backbone on diffuse/low-channel data") is stronger and more defensible than an overclaimed sweep a reviewer disproves in one run.
-   - Cheap **signal test before any full grid**: 1-seed head-to-head (ours vs. its backbone) on a candidate dataset answers go/no-go for ~$0 before committing a campaign. Kill dead directions early; don't cherry-pick the one cell that survived.
+Never infer an attestation, reviewer qualification, author profile status, or
+country. Mark unresolved fields `AUTHOR_ACTION_REQUIRED`.
 
-5. **Enforce the OpenReview field constraints (these are hard rules).**
-   - **TL;DR ≤ 250 characters.** Count it in code; the platform hard-rejects over-limit. Show the count in the artifact.
-   - **Abstract renders markdown** — use `**bold**` on load-bearing claims (numbers, "backbone-agnostic", "zero parameters"). Inline math `$...$` renders.
-   - **No LaTeX `---`/`--` em-dash notation in the pasted text** — it appears literally as hyphens. Use the actual em-dash `—`. (The `.tex` file keeps `---`; only the copy-ready plain-text/markdown version is converted.)
-   - **Title: strip identifying prefixes** — the model/system name in a double-blind title is deanonymizing; use the descriptive title only.
+## Verify the claims
 
-6. **Use the venue's official template — not a placeholder — and verify compile with it.**
-   - **Get the author kit (AAAI-27, exact source):**
-     - Stable landing link (from the [AAAI-27 conference page](https://aaai.org/conference/aaai/aaai-27/)): **https://aaai.org/authorkit27/** — this 301-redirects to the current zip.
-     - Direct zip (what the redirect resolves to as of this writing): **https://aaai.org/wp-content/uploads/2026/05/AuthorKit27.zip** (~5.5 MB). Prefer the stable `/authorkit27/` link in prose since the dated `wp-content/uploads/YYYY/MM/` path changes when AAAI reposts a revision; resolve it with `curl -sIL https://aaai.org/authorkit27/ | grep -i location` to get the live zip URL.
-     - It is **not on CTAN** — author-kit only. Fetch with `curl -L -o AuthorKit27.zip https://aaai.org/authorkit27/ && unzip AuthorKit27.zip`.
-   - **Kit contents** (`AuthorKit27/`): `aaai2027.sty` (this session: `\ProvidesPackage{aaai2027}[2027/05/04 ...]`, `TemplateVersion (2027.1)`), `aaai2027.bst`, `aaai2027.bib`, `AnonymousSubmission2027.tex` (the submission template to start from), `CameraReady2027.tex`, `ReproducibilityChecklist.tex` (+ `.pdf`), a `Word/` version, and `Figures/`. Copy `aaai2027.sty` + `aaai2027.bst` next to your `main.tex`; **before assuming the kit is missing, `find / -name aaai2027.sty` — on a shared machine a prior project usually already has it.**
-   - **Required preamble** (do not deviate — the template says `% DO NOT CHANGE THIS`): `\documentclass[letterpaper]{article}` then `\usepackage[submission]{aaai2027}`, plus `\pdfinfo{/TemplateVersion (2027.1)}`. Do not ship on a stand-in template (IEEEtran/NeurIPS/generic `article`): the citation style (AAAI = `natbib` + `aaai.bst`, author-year — not IEEEtran numeric `\cite`), fonts (`times`/`helvet`/`courier`), and the `\author{}`/`\affiliations{}` block all differ, and a placeholder silently violates format. The `[submission]` option suppresses authors and adds line numbers; camera-ready swaps it out.
-   - If the kit genuinely isn't out yet for a future year, format to the venue's *stable* spec (AAAI's has been unchanged for years) so dropping in the `.sty` is the only remaining step — and say so explicitly, because the paper will not compile until the style file is present. A convenient fallback for *previewing content while the `.sty` is absent* is a parallel `main_build.tex` on IEEEtran that `\input`s the same section/table files; keep it clearly marked as a stand-in, never the submission artifact.
-   - **Verify with the real `.sty`**: it compiles, citations render correctly under the new style, and the **page count meets the venue limit** (AAAI-27: 7 pages of body + unlimited references; the Reproducibility Checklist is mandatory; note content appendices count toward the page limit — count with the actual template, not the placeholder, since column geometry differs). The abstract deadline (AAAI-27: **July 21, 2026**) needs only the text fields (no PDF); the full-paper deadline (**July 28, 2026**) needs the compiled template — do the swap before then, not after.
+- Recompute every abstract and TL;DR number from the result artifact in this session.
+- Print the derivation, expected value, displayed value, and rounding rule.
+- Remove or flag a claim that cannot be traced.
+- State scope and negative results that materially qualify the headline.
+- Lead with the contribution type: mechanism, diagnostic, or benchmark—not an
+  incidental backbone or implementation.
 
-7. **Run the double-blind hygiene check on the paper source/build.**
-   - No author names, affiliations, or acknowledgements in the submission build.
-   - No identifying URLs (a GitHub username in a repo link deanonymizes even a private repo) — replace with "anonymized supplementary."
-   - No "our prior work [self-cite]" phrasing; no leftover venue names from a previous submission target.
-   - AAAI submission mode (`\usepackage[submission]{aaai2027}`) suppresses authors and adds line numbers; keep the `\author{}`/`\affiliations{}` commands present (with placeholders) even when anonymous.
+## Build the OpenReview field package
 
-8. **Emit the artifact + submit instructions.**
-   - One HTML page, click-to-copy blocks per field, char counts, theme-aware, self-contained.
-   - Include: which fields still need author action (e.g., "4 co-authors each need an OpenReview profile linked"), the abstract-vs-full-paper deadline split (abstract days before the PDF), and the exact OpenReview navigation.
-   - Keep the artifact synced: every time the paper abstract changes, re-verify numbers and re-publish to the *same* URL.
+Prepare copy-ready title, authors, TL;DR, abstract, primary topic, one to five
+secondary topics, and countries of institutions. Preserve TeX only where the live
+field explicitly supports it. Count against limits read from the current form or
+schema; do not hard-code a historical limit.
 
-## Quality requirements
+Check that every author already has an up-to-date OpenReview profile containing
+the required publication name, current position, institution-affiliated email,
+and DBLP URL when available. Incomplete profiles are a desk-rejection risk.
 
-- **Every number in the package traces to the results file, re-computed in code this session.** No exceptions, no "it was right last time."
-- **The TL;DR is measured, not estimated, to be ≤250 characters.**
-- **Framework-level claims use the strongest *honest* aggregate** the results support, and scope/negative results are stated, not hidden.
-- **The pasted abstract contains zero LaTeX artifacts** (`---`, `\emph`, `~\cite`, `\%`); it is clean markdown + Unicode.
-- **Double-blind is verified on the actual build**, not assumed.
-- **The author's only remaining action is the submission click** — every field is copy-ready.
+## Package submission files
 
-## Pipeline lessons that protect submission numbers
+- Upload the main paper as PDF.
+- Upload the answered standalone reproducibility checklist.
+- Keep the main paper self-contained. A technical supplement is optional,
+  reviewers need not read it, and the current AAAI-27 form limits it to 10 MB.
+- A media supplement is optional and limited to 50 MB.
+- A code/data supplement is optional, archive-based, and limited to 50 MB.
 
-Numbers reach the abstract through an experiment pipeline; these failures silently corrupt them and are worth checking when results look "off":
+### Prohibit external paper-source/data repositories
 
-- **`FAIL` must not read as done.** A crashed run that logs an empty/`0.0000` result which then satisfies a done-check is never retried, and a min-MSE ranking may even let the `0.0000` *win* the cell. Detect empty output explicitly; release the claim on failure.
-- **One experiment queue per box.** Stacking multiple 8-GPU queues oversubscribes CPU/IO and mass-crashes runs (whose failures then look like "the method lost").
-- **Fake 3-seed.** Separate processes with a fixed global seed produce bit-identical "seeds"; real variance needs the framework's own multi-iteration seeding. Bit-identical seed triples in a results file are a red flag.
-- **Missing-value contamination.** Datasets that encode missing readings as 0 (e.g., METR-LA) bias evaluation and corrupt correlation-derived structure; mask or interpolate before both training and structure estimation.
-- **Config-collision in harvest.** Different configs sharing a result key silently merge; key on a config fingerprint, and prefer the ≥3-seed entry the paper tables actually render.
+Do not link the submission's source code or data to any external repository. This
+includes public, private, and anonymized services such as GitHub, AnonymousGitHub,
+GitLab, Hugging Face repositories, OSF, or similar hosts. Package reviewer-facing
+code, scripts, data, and instructions inside the Code and Data Supplement archive.
 
-## Conference → journal positioning
+Scan the paper, OpenReview fields, supplements, README files, scripts, notebooks,
+and archive contents for repository URLs. Distinguish citations to third-party
+prior work from links to this submission's artifacts, but allow **zero** external
+links to the paper's own source/data. Do not replace them with an anonymized link;
+remove them and point to the uploaded supplement.
 
-If a framework result is promoted to the conference paper, the extended/benchmark story becomes the journal (conference→journal pipeline). Record which paper owns which claim so the two don't double-publish the same headline. Do this *before* submission while both drafts are still editable.
+Run `scripts/audit_submission.py` on the metadata and all text-bearing submission
+materials. Treat every reported repository URL as blocking until a human confirms
+it is a conventional third-party citation rather than a paper-artifact link.
+
+## Verify reciprocal-reviewer obligations
+
+Before the live form's nomination lock:
+
+- determine whether any author satisfies the stated archival-publication threshold;
+- exclude SPCs, ACs, and organizers;
+- verify the candidate with the official qualification checker and DBLP;
+- obtain the candidate's agreement to the stated reviewing load;
+- select either a qualified nominee or the explicit no-qualified-author declaration.
+
+Do not guess. The form warns that failing to nominate an available qualified author,
+or failure by the nominee to complete reviews, can cause desk rejection.
+
+## Verify policy attestations
+
+Require author confirmation that:
+
+- all profiles are complete;
+- neither the manuscript nor a substantially similar version is under review at
+  another archival venue;
+- relevant simultaneous submissions are cited anonymously as `under review`;
+- conflicts are complete;
+- the displayed license is accepted.
+
+## Compile and inspect
+
+Use the current official AAAI template in submission mode. Compile the actual
+submission source, check page count and references, render the PDF, and inspect
+every page. Verify no author names, affiliations, acknowledgements, identifying
+artifact URLs, PDF metadata, hidden annotations, or deanonymizing self-citations.
+
+## Deliver
+
+Produce:
+
+- a copy-ready field artifact with live character counts;
+- a field-by-field source ledger;
+- a file/size manifest;
+- an external-link scan report;
+- a profile and reciprocal-reviewer checklist;
+- a policy-attestation checklist;
+- a short `BLOCKING`, `AUTHOR_ACTION_REQUIRED`, and `READY` summary.
+
+The author performs the final submission click.

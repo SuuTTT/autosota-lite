@@ -1,0 +1,4 @@
+interface:
+  display_name: "AAAI Paper Polish Suite"
+  short_description: "Polish, illustrate, and submit AAAI papers"
+  default_prompt: "Use $aaai-paper-polish-suite to polish my author-written paper, audit its figures, and prepare an AAAI submission package."
